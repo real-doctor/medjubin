@@ -16,6 +16,30 @@
   <link rel="stylesheet" href="css/index.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/admin.css">
+
+  <!-- Admin Session Security Guard (SHA-256 암호화 검증) -->
+  <script>
+    (async function() {
+      const ADMIN_HASH = '1ccbd77c7a69ef825b3ec9acb893f96cb2a1ab99a7e2d4bf6409ba464100beea';
+      const token = sessionStorage.getItem('admin_auth_token');
+      if (!token) {
+        const entered = prompt('관리자 보안 인증이 필요합니다. 비밀번호를 입력하세요:');
+        if (entered) {
+          try {
+            const buffer = new TextEncoder().encode(entered.trim());
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            if (hash === ADMIN_HASH) {
+              sessionStorage.setItem('admin_auth_token', 'AUTH_VALID_' + Date.now());
+              return;
+            }
+          } catch(e) {}
+        }
+        alert('관리자 인증에 실패했습니다. 메인 페이지로 이동합니다.');
+        window.location.href = 'index.html';
+      }
+    })();
+  </script>
 </head>
 <body>
 

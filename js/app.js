@@ -275,20 +275,32 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Secret Admin Password Verification Form
+    // Secret Admin Password Verification Form (SHA-256 단방향 암호화 검증)
     const adminAuthForm = document.getElementById('adminAuthForm');
     if (adminAuthForm) {
-      adminAuthForm.addEventListener('submit', (e) => {
+      adminAuthForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const pwdInput = document.getElementById('adminSecretPasswordInput');
         const errBox = document.getElementById('adminAuthErrorMsg');
         const enteredPassword = pwdInput ? pwdInput.value.trim() : '';
 
-        if (enteredPassword === 'votm1212!') {
+        const ADMIN_AUTH_HASH = '1ccbd77c7a69ef825b3ec9acb893f96cb2a1ab99a7e2d4bf6409ba464100beea';
+        
+        let hash = '';
+        try {
+          const buffer = new TextEncoder().encode(enteredPassword);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+          hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (err) {
+          console.error('Crypto error:', err);
+        }
+
+        if (hash === ADMIN_AUTH_HASH) {
+          sessionStorage.setItem('admin_auth_token', 'AUTH_VALID_' + Date.now());
           ModalModule.showToast('관리자 인증에 성공했습니다. 스튜디오로 이동합니다.');
           setTimeout(() => {
             window.location.href = 'admin.html';
-          }, 400);
+          }, 350);
         } else {
           if (errBox) errBox.style.display = 'block';
           if (pwdInput) {

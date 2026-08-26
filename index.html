@@ -598,6 +598,14 @@
 
   <!-- Inline Admin Gate Helper -->
   <script>
+    const ADMIN_AUTH_HASH = '1ccbd77c7a69ef825b3ec9acb893f96cb2a1ab99a7e2d4bf6409ba464100beea';
+
+    async function computeSHA256(str) {
+      const buffer = new TextEncoder().encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     function handleAdminSecretAccess() {
       const modal = document.getElementById('adminAuthModal');
       const pwdInput = document.getElementById('adminSecretPasswordInput');
@@ -610,21 +618,28 @@
         setTimeout(() => pwdInput && pwdInput.focus(), 150);
       } else {
         const pwd = prompt("관리자 비밀번호를 입력하세요:");
-        if (pwd === "votm1212!") {
-          window.location.href = "admin.html";
-        } else if (pwd !== null) {
-          alert("비밀번호가 일치하지 않습니다.");
+        if (pwd) {
+          computeSHA256(pwd.trim()).then(hash => {
+            if (hash === ADMIN_AUTH_HASH) {
+              sessionStorage.setItem('admin_auth_token', 'AUTH_VALID_' + Date.now());
+              window.location.href = "admin.html";
+            } else {
+              alert("비밀번호가 일치하지 않습니다.");
+            }
+          });
         }
       }
     }
 
-    function handleAdminPasswordSubmit(e) {
+    async function handleAdminPasswordSubmit(e) {
       if (e) e.preventDefault();
       const pwdInput = document.getElementById('adminSecretPasswordInput');
       const errBox = document.getElementById('adminAuthErrorMsg');
       const entered = pwdInput ? pwdInput.value.trim() : '';
 
-      if (entered === 'votm1212!') {
+      const hash = await computeSHA256(entered);
+      if (hash === ADMIN_AUTH_HASH) {
+        sessionStorage.setItem('admin_auth_token', 'AUTH_VALID_' + Date.now());
         window.location.href = 'admin.html';
       } else {
         if (errBox) errBox.style.display = 'block';
