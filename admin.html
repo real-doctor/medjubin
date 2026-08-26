@@ -31,9 +31,9 @@
           <div class="brand-info">
             <h1>
               관리자 AI 스튜디오
-              <span class="brand-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4);">3-WAY SMART TRIAGE</span>
+              <span class="brand-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4);">GIT-AS-A-DB</span>
             </h1>
-            <p class="brand-sub">1차 3분할(승인/검토/배제) ➔ 2차 AI 선별 팩트체크 초고속 인제스천</p>
+            <p class="brand-sub">1차 3분할(승인/검토/배제) ➔ 2차 AI 선별 ➔ GitHub DB 원클릭 직접 커밋</p>
           </div>
         </div>
 
@@ -42,7 +42,7 @@
             <i class="ri-arrow-left-line"></i> 메인 아카이브로 이동
           </a>
           <button id="publishApprovedBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-            <i class="ri-upload-cloud-2-fill"></i> 승인 데이터 아카이브 발행
+            <i class="ri-github-fill"></i> GitHub DB 직접 커밋 & 발행
           </button>
         </div>
       </div>
@@ -108,14 +108,50 @@
             </div>
             <div class="triage-body">
               • <code>복지부</code>, <code>보건복지부</code> 행정/정책 기사<br>
-              • <code>中</code>, <code>日</code>, <code>美</code>, <code>중국</code>, <code>미국</code>, <code>일본</code> 등 해외 사례<br>
-              • <code>한의사</code>, <code>치과의사</code>, <code>의사소통/표시</code> 동음이의어
+              • <code>中</code>, <code>日</code>, <code>美</code>, <code>印</code> 등 해외 사건<br>
+              • <code>한의사</code>, <code>치과의사</code>, <code>거부 의사</code> 등 동음이의어
             </div>
           </div>
         </div>
 
+        <!-- Git-as-a-DB Direct Sync Card -->
+        <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <i class="ri-git-repository-commits-line" style="color: #60a5fa; font-size: 1.2rem;"></i>
+              <strong style="font-size: 0.92rem; color: #93c5fd;">Git-as-a-DB 자동 동기화 설정 (GitHub REST API)</strong>
+            </div>
+            <span style="font-size: 0.76rem; color: var(--text-muted);">
+              저장소: <code>real-doctor/medjubin</code> (branch: <code>main</code>)
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
+            <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
+              <input type="password" id="githubPatInput" class="api-key-input" placeholder="ghp_... (GitHub Personal Access Token - repo 권한)">
+              <button id="toggleGithubKeyVisibilityBtn" class="btn-icon-inner" title="토큰 보기/숨기기">
+                <i class="ri-eye-line"></i>
+              </button>
+            </div>
+
+            <button id="saveGithubPatBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+              <i class="ri-save-line"></i> 토큰 저장
+            </button>
+
+            <button id="syncGitDbBtn" class="btn btn-primary" style="font-size: 0.85rem; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+              <i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋
+            </button>
+
+            <button id="downloadLocalDataBtn" class="btn btn-secondary" style="font-size: 0.82rem;" title="data.js 파일로 직접 다운로드">
+              <i class="ri-download-2-line"></i> data.js 다운로드
+            </button>
+          </div>
+
+          <div id="gitSyncStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem;"></div>
+        </div>
+
         <!-- API Key Input & Model Setup Row -->
-        <div id="geminiApiRow" class="ai-api-row">
+        <div id="geminiApiRow" class="ai-api-row" style="margin-top: 1rem;">
           <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
             <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.3rem;">
               <i class="ri-key-2-fill" style="color: var(--accent-secondary);"></i> Gemini 3.7+ API 키 및 병렬 설정 (검토 대상 기사 전용):
@@ -170,7 +206,7 @@
         </div>
 
         <!-- Progress Bar -->
-        <div>
+        <div style="margin-top: 1rem;">
           <div class="ai-status-summary-bar" style="margin-bottom: 0.4rem;">
             <span id="aiProgressText">3분할 파이프라인 준비 완료</span>
             <span id="aiStatsSummary">대기열 총 0건</span>

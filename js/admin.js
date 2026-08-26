@@ -1,11 +1,9 @@
 /**
- * 대한민국 의사 아카이브 3분할(승인/검토/배제) 스마트 인제스천 모듈 (admin.js)
+ * 대한민국 의사 아카이브 3분할(승인/검토/배제) 스마트 인제스천 & Git-as-a-DB 엔진 (admin.js)
  * 
- * [해외 국가 한자 약자(日·美·中·印·英·佛·獨·露 등) 및 해외 사건 철통 배제 엔진 탑재]
- * 1. 한자 국가 약자 패턴 전면 감지:
- *    - '日 60대 의사', '印의사들', '美 40대 의사', '[日 ...]', '(美)', '中 병원' 등
- *      위치나 나이 수식어('60대')에 상관없이 모든 해외 사건 100% 즉시 배제.
- * 2. 국내 양의사(醫師) 실제 가해 범죄만 정밀 승인.
+ * 1. 3분할 스마트 로컬 고속 트리거 (0.1초)
+ * 2. Gemini 3.7+ AI 병렬 팩트체크 엔진
+ * 3. Git-as-a-DB: GitHub REST API를 통해 브라우저에서 data.js를 직접 커밋 & 배포
  */
 
 const DEFAULT_GEMINI_SYSTEM_PROMPT = `너는 대한민국 언론에 보도된 기사를 정밀 팩트체크하여 '의사 범죄 아카이브'에 등재할지 판정하는 전문 AI 감사관이다.
@@ -43,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize
   initPrompt();
-  initApiKey();
+  initApiKeys();
   initEventListeners();
   updateQueueStats();
   renderReviewList();
@@ -56,7 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function initApiKey() {
+  function initApiKeys() {
+    // Gemini Key
     const savedKey = localStorage.getItem('gemini_api_key') || '';
     const keyInput = document.getElementById('geminiApiKeyInput');
     if (keyInput) keyInput.value = savedKey;
@@ -64,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedModel = localStorage.getItem('gemini_selected_model') || 'auto';
     const modelSelect = document.getElementById('geminiModelSelect');
     if (modelSelect) modelSelect.value = savedModel;
+
+    // GitHub PAT
+    const savedGithubPat = localStorage.getItem('github_db_token') || '';
+    const githubInput = document.getElementById('githubPatInput');
+    if (githubInput) githubInput.value = savedGithubPat;
   }
 
   function initEventListeners() {
@@ -104,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Save API Key & Model
+    // Save Gemini Key & Model
     const saveKeyBtn = document.getElementById('saveApiKeyBtn');
     if (saveKeyBtn) {
       saveKeyBtn.addEventListener('click', () => {
@@ -116,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Toggle API Key Visibility
+    // Toggle Gemini Key Visibility
     const toggleKeyVisibilityBtn = document.getElementById('toggleKeyVisibilityBtn');
     const keyInput = document.getElementById('geminiApiKeyInput');
     if (toggleKeyVisibilityBtn && keyInput) {
@@ -124,6 +128,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const isPassword = keyInput.type === 'password';
         keyInput.type = isPassword ? 'text' : 'password';
         toggleKeyVisibilityBtn.innerHTML = isPassword ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
+      });
+    }
+
+    // Save GitHub PAT
+    const saveGithubPatBtn = document.getElementById('saveGithubPatBtn');
+    if (saveGithubPatBtn) {
+      saveGithubPatBtn.addEventListener('click', () => {
+        const token = document.getElementById('githubPatInput').value.trim();
+        localStorage.setItem('github_db_token', token);
+        alert('GitHub Token이 안전하게 저장되었습니다.');
+      });
+    }
+
+    // Toggle GitHub Key Visibility
+    const toggleGithubKeyVisibilityBtn = document.getElementById('toggleGithubKeyVisibilityBtn');
+    const githubInput = document.getElementById('githubPatInput');
+    if (toggleGithubKeyVisibilityBtn && githubInput) {
+      toggleGithubKeyVisibilityBtn.addEventListener('click', () => {
+        const isPassword = githubInput.type === 'password';
+        githubInput.type = isPassword ? 'text' : 'password';
+        toggleGithubKeyVisibilityBtn.innerHTML = isPassword ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
+      });
+    }
+
+    // Git-as-a-DB Direct Sync Button
+    const syncGitDbBtn = document.getElementById('syncGitDbBtn');
+    if (syncGitDbBtn) {
+      syncGitDbBtn.addEventListener('click', () => {
+        syncDirectlyToGitHubDb();
+      });
+    }
+
+    // Header Publish Button (Calls Git-as-a-DB)
+    const publishBtn = document.getElementById('publishApprovedBtn');
+    if (publishBtn) {
+      publishBtn.addEventListener('click', () => {
+        syncDirectlyToGitHubDb();
+      });
+    }
+
+    // Local data.js Download Button
+    const downloadLocalDataBtn = document.getElementById('downloadLocalDataBtn');
+    if (downloadLocalDataBtn) {
+      downloadLocalDataBtn.addEventListener('click', () => {
+        downloadDataJsFileLocally();
       });
     }
 
@@ -145,14 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderReviewList();
       });
     });
-
-    // Publish Button
-    const publishBtn = document.getElementById('publishApprovedBtn');
-    if (publishBtn) {
-      publishBtn.addEventListener('click', () => {
-        publishApprovedRecords();
-      });
-    }
   }
 
   // =========================================================================
@@ -186,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // -------------------------------------------------------------------
       // 1. [배제 판정 B]: 해외 국가 한자 약자 (美·日·中·印·英·佛·獨·露 등) 및 해외 사건 전면 배제
-      //    예: '日 60대 의사', '印의사들', '美 의사', '[日 ...]', '(美)', '중국 병원' 등
       // -------------------------------------------------------------------
       const HANJA_COUNTRIES = '美|日|中|印|英|佛|獨|露|泰|越|豪|加|伊|西|俄';
       const hasHanjaCountry = new RegExp(
@@ -234,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // -------------------------------------------------------------------
       // 1. [배제 판정 E]: 동음이의어(意思) 전용 기사 판정 (의료 맥락 완전 부재)
-      //    '거부 의사', '합의 의사' 구문 외에 다른 의료 키워드가 아예 없는 일반인 사건
       // -------------------------------------------------------------------
       const textWithoutIntent = fullText
         .replace(/(거부|반대|찬성|동의|합의|처벌|불처벌|사직|사임|출마|포기|살해|범행|성관계|자살|진술|결혼|구매|매입|취소|철회|의원직|명시적|묵시적|자발적)\s*의사/gi, ' ')
@@ -618,6 +657,218 @@ document.addEventListener('DOMContentLoaded', () => {
     testBtn.innerHTML = '<i class="ri-wifi-line"></i> 연결 테스트';
   }
 
+  // =========================================================================
+  // 3. Git-as-a-DB: GitHub REST API 직접 커밋 & 배포 엔진
+  // =========================================================================
+  function generateFormattedDataJs() {
+    const approvedItems = rawQueue.filter(d => d.aiStatus === 'approved');
+    if (approvedItems.length === 0) return null;
+
+    const formattedRecords = approvedItems.map((item, idx) => {
+      let yearNum = 2023;
+      let dateStr = "2023-01-01";
+      if (item.pubDate) {
+        const d = new Date(item.pubDate);
+        if (!isNaN(d.getTime())) {
+          yearNum = d.getFullYear();
+          dateStr = `${yearNum}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+      }
+
+      const meta = item.aiMeta || extractMetadataLocally(item);
+      const categoryNames = {
+        sex_crime: "성범죄",
+        narcotics: "마약류/향정",
+        proxy_surgery: "대리수술/무면허",
+        malpractice_hazard: "의료사고/도덕적해이",
+        fraud_rebate: "사기/리베이트",
+        other_crimes: "기타 강력/형사"
+      };
+
+      return {
+        id: `AI-MED-${yearNum}-${String(idx + 1).padStart(4, '0')}`,
+        title: item.title,
+        date: dateStr,
+        year: yearNum,
+        region: meta.region || "서울",
+        district: "지역 의원 밀집지",
+        category: meta.category || item.category || "other_crimes",
+        categoryName: categoryNames[meta.category] || categoryNames[item.category] || "기타 형사범죄",
+        specialty: meta.specialty || "일반의",
+        summary: `${dateStr}경 언론에 보도된 사건으로, ${item.title}. 정식 언론 보도를 통해 확인됨.`,
+        timeline: [
+          { stage: "언론 보도 및 수사", date: dateStr.slice(0, 7), desc: `${item.media} 정식 보도` },
+          { stage: "법적 진행 상황", date: dateStr.slice(0, 7), desc: meta.legalStatus || '수사 및 기소' }
+        ],
+        legalStatus: meta.legalStatus || "수사 및 기소",
+        licenseImpact: "처분 및 재판 절차",
+        sources: [
+          { media: item.media, title: item.title, date: dateStr, url: item.link }
+        ],
+        tags: [categoryNames[meta.category] || "형사사건", meta.region, meta.specialty]
+      };
+    });
+
+    const dataJsCode = `/**
+ * 대한민국 의사(양의사) 범죄 및 의료사고 공공보도 아카이브 데이터베이스 (Git-as-a-DB 자동 생성본)
+ * 최종 갱신: ${new Date().toISOString()} (총 ${formattedRecords.length}건)
+ */
+
+const ARCHIVE_DATA = ${JSON.stringify(formattedRecords, null, 2)};
+
+const CATEGORY_META = {
+  all: { label: "전체 사건", color: "#3b82f6", icon: "ri-folder-open-fill" },
+  sex_crime: { label: "성범죄 / 불법촬영", color: "#f43f5e", icon: "ri-shield-cross-fill" },
+  narcotics: { label: "마약류 / 프로포폴", color: "#8b5cf6", icon: "ri-capsule-fill" },
+  proxy_surgery: { label: "대리수술 / 무면허", color: "#f59e0b", icon: "ri-knife-line" },
+  malpractice_hazard: { label: "의료사고 / 도덕적해이", color: "#ef4444", icon: "ri-error-warning-fill" },
+  fraud_rebate: { label: "보험사기 / 리베이트", color: "#06b6d4", icon: "ri-money-dollar-circle-fill" },
+  other_crimes: { label: "기타 강력 / 형사범죄", color: "#64748b", icon: "ri-scales-3-fill" }
+};
+
+const REGIONS_LIST = [
+  "서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
+];
+`;
+
+    return { records: formattedRecords, code: dataJsCode };
+  }
+
+  // UTF-8 to Base64 encoder (safe for Korean Unicode)
+  function utf8ToBase64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode('0x' + p1);
+    }));
+  }
+
+  async function syncDirectlyToGitHubDb() {
+    const formatted = generateFormattedDataJs();
+    if (!formatted) {
+      alert('최종 승인된 기사가 없습니다. 1단계 필터 또는 2단계 AI 검토를 먼저 실행해 주세요.');
+      return;
+    }
+
+    const tokenInput = document.getElementById('githubPatInput');
+    const token = (tokenInput ? tokenInput.value.trim() : '') || localStorage.getItem('github_db_token');
+    const statusBox = document.getElementById('gitSyncStatusBox');
+    const syncBtn = document.getElementById('syncGitDbBtn');
+
+    if (!token) {
+      alert('GitHub Token(PAT)이 필요합니다.\nGit-as-a-DB 패널에 GitHub Personal Access Token을 입력해 주세요.');
+      if (tokenInput) tokenInput.focus();
+      return;
+    }
+
+    localStorage.setItem('github_db_token', token);
+    localStorage.setItem('archive_published_data', JSON.stringify(formatted.records));
+
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> GitHub DB 커밋 중...';
+    }
+
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      statusBox.style.background = 'rgba(59, 130, 246, 0.15)';
+      statusBox.style.border = '1px solid rgba(59, 130, 246, 0.4)';
+      statusBox.style.color = '#93c5fd';
+      statusBox.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> GitHub 저장소(real-doctor/medjubin)의 기존 js/data.js SHA 확인 중...';
+    }
+
+    try {
+      const repoPath = 'real-doctor/medjubin';
+      const filePath = 'js/data.js';
+      const branch = 'main';
+
+      // 1. Get existing file SHA
+      const getRes = await fetch(`https://api.github.com/repos/${repoPath}/contents/${filePath}?ref=${branch}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      let currentSha = null;
+      if (getRes.ok) {
+        const fileInfo = await getRes.json();
+        currentSha = fileInfo.sha;
+      }
+
+      // 2. Commit updated data.js to GitHub
+      const encodedContent = utf8ToBase64(formatted.code);
+      const commitMessage = `chore(db): 아카이브 데이터베이스 자동 갱신 (총 ${formatted.records.length}건 승인 사건 반영)`;
+
+      const putRes = await fetch(`https://api.github.com/repos/${repoPath}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: commitMessage,
+          content: encodedContent,
+          sha: currentSha || undefined,
+          branch: branch
+        })
+      });
+
+      if (putRes.ok) {
+        const putData = await putRes.json();
+        const commitUrl = putData.commit ? putData.commit.html_url : `https://github.com/${repoPath}/commits/${branch}`;
+
+        if (statusBox) {
+          statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
+          statusBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+          statusBox.style.color = '#6ee7b7';
+          statusBox.innerHTML = `
+            <strong><i class="ri-checkbox-circle-fill"></i> Git-as-a-DB 동기화 성공!</strong><br>
+            총 <strong>${formatted.records.length}건</strong>의 승인 사건이 GitHub <code>main</code> 브랜치에 직접 커밋되었습니다.<br>
+            <a href="${commitUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; margin-top: 0.3rem; display: inline-block;">
+              <i class="ri-external-link-line"></i> GitHub 커밋 내역 확인하기 (${commitUrl.slice(-7)})
+            </a>
+          `;
+        }
+
+        alert(`🎉 Git-as-a-DB 동기화 완료!\n총 ${formatted.records.length}건이 GitHub 저장소에 즉시 커밋되었습니다.\nGitHub Pages에 30초 내로 자동 배포됩니다.`);
+      } else {
+        const errData = await putRes.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${putRes.status}`);
+      }
+    } catch (err) {
+      if (statusBox) {
+        statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        statusBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+        statusBox.style.color = '#fca5a5';
+        statusBox.innerHTML = `<strong><i class="ri-error-warning-fill"></i> GitHub DB 동기화 실패:</strong> ${err.message}<br><span style="font-size:0.75rem;">(토큰 권한이 올바른지 확인하거나 data.js 다운로드 버튼을 이용해 주세요.)</span>`;
+      }
+      alert(`GitHub DB 커밋 실패: ${err.message}`);
+    } finally {
+      if (syncBtn) {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋';
+      }
+    }
+  }
+
+  function downloadDataJsFileLocally() {
+    const formatted = generateFormattedDataJs();
+    if (!formatted) {
+      alert('최종 승인된 기사가 없습니다. 1단계 필터 또는 2단계 AI 검토를 실행해 주세요.');
+      return;
+    }
+
+    localStorage.setItem('archive_published_data', JSON.stringify(formatted.records));
+
+    const blob = new Blob([formatted.code], { type: 'application/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.js';
+    a.click();
+
+    alert(`🎉 총 ${formatted.records.length}건의 승인 사건이 담긴 data.js 파일이 다운로드되었습니다.`);
+  }
+
   // Queue Statistics
   function updateQueueStats() {
     let total = rawQueue.length;
@@ -746,89 +997,4 @@ document.addEventListener('DOMContentLoaded', () => {
       renderReviewList();
     }
   };
-
-  // Publish Approved Records
-  function publishApprovedRecords() {
-    const approvedItems = rawQueue.filter(d => d.aiStatus === 'approved');
-    if (approvedItems.length === 0) {
-      alert('최종 승인된 기사가 없습니다. 1단계 필터 또는 2단계 AI 검토를 실행해 주세요.');
-      return;
-    }
-
-    const formattedRecords = approvedItems.map((item, idx) => {
-      let yearNum = 2023;
-      let dateStr = "2023-01-01";
-      if (item.pubDate) {
-        const d = new Date(item.pubDate);
-        if (!isNaN(d.getTime())) {
-          yearNum = d.getFullYear();
-          dateStr = `${yearNum}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        }
-      }
-
-      const meta = item.aiMeta || extractMetadataLocally(item);
-      const categoryNames = {
-        sex_crime: "성범죄",
-        narcotics: "마약류/향정",
-        proxy_surgery: "대리수술/무면허",
-        malpractice_hazard: "의료사고/도덕적해이",
-        fraud_rebate: "사기/리베이트",
-        other_crimes: "기타 강력/형사"
-      };
-
-      return {
-        id: `AI-MED-${yearNum}-${String(idx + 1).padStart(4, '0')}`,
-        title: item.title,
-        date: dateStr,
-        year: yearNum,
-        region: meta.region || "서울",
-        district: "지역 의원 밀집지",
-        category: item.category || "other_crimes",
-        categoryName: categoryNames[item.category] || "기타 형사범죄",
-        specialty: meta.specialty || "일반의",
-        summary: `${dateStr}경 언론에 보도된 사건으로, ${item.title}. 정식 언론 보도를 통해 확인됨.`,
-        timeline: [
-          { stage: "언론 보도 및 수사", date: dateStr.slice(0, 7), desc: `${item.media} 정식 보도` },
-          { stage: "법적 진행 상황", date: dateStr.slice(0, 7), desc: meta.legalStatus || '수사 및 기소' }
-        ],
-        legalStatus: meta.legalStatus || "수사 및 기소",
-        licenseImpact: "처분 및 재판 절차",
-        sources: [
-          { media: item.media, title: item.title, date: dateStr, url: item.link }
-        ],
-        tags: [categoryNames[item.category], meta.region, meta.specialty]
-      };
-    });
-
-    localStorage.setItem('archive_published_data', JSON.stringify(formattedRecords));
-
-    const dataJsCode = `/**
- * 대한민국 의사(양의사) 범죄 및 의료사고 공공보도 아카이브 데이터베이스 (검증 완료본)
- */
-
-const ARCHIVE_DATA = ${JSON.stringify(formattedRecords, null, 2)};
-
-const CATEGORY_META = {
-  all: { label: "전체 사건", color: "#3b82f6", icon: "ri-folder-open-fill" },
-  sex_crime: { label: "성범죄 / 불법촬영", color: "#f43f5e", icon: "ri-shield-cross-fill" },
-  narcotics: { label: "마약류 / 프로포폴", color: "#8b5cf6", icon: "ri-capsule-fill" },
-  proxy_surgery: { label: "대리수술 / 무면허", color: "#f59e0b", icon: "ri-knife-line" },
-  malpractice_hazard: { label: "의료사고 / 도덕적해이", color: "#ef4444", icon: "ri-error-warning-fill" },
-  fraud_rebate: { label: "보험사기 / 리베이트", color: "#06b6d4", icon: "ri-money-dollar-circle-fill" },
-  other_crimes: { label: "기타 강력 / 형사범죄", color: "#64748b", icon: "ri-scales-3-fill" }
-};
-
-const REGIONS_LIST = [
-  "서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
-];
-`;
-
-    const blob = new Blob([dataJsCode], { type: 'application/javascript' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'data.js';
-    a.click();
-
-    alert(`🎉 총 ${formattedRecords.length}건의 승인 사건이 아카이브에 성공적으로 발행되었습니다!\n새로운 data.js 파일이 다운로드됩니다.`);
-  }
 });
