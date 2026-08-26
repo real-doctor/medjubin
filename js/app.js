@@ -1,24 +1,32 @@
-/**
- * 대한민국 의사 범죄 및 의료사고 공공보도 아카이브 메인 애플리케이션 (app.js)
- */
-
 document.addEventListener('DOMContentLoaded', () => {
-  // State
-  const customDataStr = localStorage.getItem('archive_published_data');
-  let rawArchiveData = [...ARCHIVE_DATA];
-  if (customDataStr) {
-    try {
-      const parsed = JSON.parse(customDataStr);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        rawArchiveData = parsed;
+  // Master Data Loader (ARCHIVE_DATA 242건 기반 안전 로딩 및 발행 데이터 병합)
+  function loadMasterData() {
+    let baseData = (typeof ARCHIVE_DATA !== 'undefined' && Array.isArray(ARCHIVE_DATA)) ? [...ARCHIVE_DATA] : [];
+    const customDataStr = localStorage.getItem('archive_published_data');
+    if (customDataStr) {
+      try {
+        const parsed = JSON.parse(customDataStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const idSet = new Set(baseData.map(d => d.id));
+          parsed.forEach(item => {
+            if (item && item.id && !idSet.has(item.id)) {
+              baseData.unshift(item);
+              idSet.add(item.id);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Custom data parse error:', e);
       }
-    } catch (e) {
-      console.warn('Custom data parse error:', e);
     }
+    return baseData;
   }
+
+  let rawArchiveData = loadMasterData();
 
   // 신고 기준치(기본 20회) 이상 누적된 기사 자동 제외
   function getVisibleArticles(data) {
+    if (!Array.isArray(data)) return [];
     const threshold = parseInt(localStorage.getItem('report_hide_threshold') || '20', 10);
     let reports = {};
     try {
@@ -26,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
 
     return data.filter(item => {
+      if (!item) return false;
       const count = reports[item.id] || 0;
       return count < threshold;
     });
@@ -40,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Feed Refresher (신고 등 상태 변경 시 호출)
   window.refreshArchiveFeed = () => {
+    rawArchiveData = loadMasterData();
     activeArchiveData = getVisibleArticles(rawArchiveData);
     renderKPIStats();
     applyFiltersAndRender();
@@ -49,8 +59,18 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initEventListeners();
   ModalModule.initModals();
+  FilterModule.resetFilters();
   renderKPIStats();
   applyFiltersAndRender();
+
+  // Double check on window load
+  window.addEventListener('load', () => {
+    if (activeArchiveData.length === 0) {
+      window.refreshArchiveFeed();
+    } else {
+      renderKPIStats();
+    }
+  });
 
   // 1. Theme Management
   function initTheme() {

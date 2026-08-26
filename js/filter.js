@@ -32,16 +32,19 @@ const FilterModule = (() => {
   }
 
   function filterData(dataset) {
+    if (!Array.isArray(dataset)) return [];
     return dataset.filter(item => {
-      // 1. Search Query (Title, Summary, Tags, Specialty, District)
+      if (!item) return false;
+
+      // 1. Search Query (Title, Summary, Tags, Specialty, District, Legal)
       if (currentFilters.search) {
         const query = currentFilters.search.toLowerCase().trim();
-        const matchTitle = item.title.toLowerCase().includes(query);
-        const matchSummary = item.summary.toLowerCase().includes(query);
-        const matchSpecialty = item.specialty.toLowerCase().includes(query);
-        const matchDistrict = item.district.toLowerCase().includes(query);
-        const matchTags = item.tags.some(tag => tag.toLowerCase().includes(query));
-        const matchLegal = item.legalStatus.toLowerCase().includes(query);
+        const matchTitle = (item.title || '').toLowerCase().includes(query);
+        const matchSummary = (item.summary || '').toLowerCase().includes(query);
+        const matchSpecialty = (item.specialty || '').toLowerCase().includes(query);
+        const matchDistrict = (item.district || '').toLowerCase().includes(query);
+        const matchTags = Array.isArray(item.tags) ? item.tags.some(tag => (tag || '').toLowerCase().includes(query)) : false;
+        const matchLegal = (item.legalStatus || '').toLowerCase().includes(query);
 
         if (!matchTitle && !matchSummary && !matchSpecialty && !matchDistrict && !matchTags && !matchLegal) {
           return false;
@@ -49,22 +52,22 @@ const FilterModule = (() => {
       }
 
       // 2. Category
-      if (currentFilters.category !== 'all' && item.category !== currentFilters.category) {
+      if (currentFilters.category && currentFilters.category !== 'all' && item.category !== currentFilters.category) {
         return false;
       }
 
       // 3. Region
-      if (currentFilters.region !== 'all' && item.region !== currentFilters.region) {
+      if (currentFilters.region && currentFilters.region !== 'all' && item.region !== currentFilters.region) {
         return false;
       }
 
       // 4. Year
-      if (currentFilters.year !== 'all' && String(item.year) !== String(currentFilters.year)) {
+      if (currentFilters.year && currentFilters.year !== 'all' && String(item.year) !== String(currentFilters.year)) {
         return false;
       }
 
       // 5. License / Legal Disposition
-      if (currentFilters.licenseStatus !== 'all') {
+      if (currentFilters.licenseStatus && currentFilters.licenseStatus !== 'all') {
         const impact = item.licenseImpact || '';
         if (currentFilters.licenseStatus === 'revoked' && !impact.includes('취소')) return false;
         if (currentFilters.licenseStatus === 'suspended' && !impact.includes('정지')) return false;
@@ -75,22 +78,28 @@ const FilterModule = (() => {
       return true;
     }).sort((a, b) => {
       // Sorting
+      const dateA = a && a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b && b.date ? new Date(b.date).getTime() : 0;
       if (currentFilters.sortBy === 'oldest') {
-        return new Date(a.date) - new Date(b.date);
+        return dateA - dateB;
       } else {
-        return new Date(b.date) - new Date(a.date);
+        return dateB - dateA;
       }
     });
   }
 
   function calculateRegionCounts(dataset) {
     const counts = {};
-    REGIONS_LIST.forEach(r => counts[r] = 0);
-    dataset.forEach(item => {
-      if (counts[item.region] !== undefined) {
-        counts[item.region]++;
-      }
-    });
+    if (typeof REGIONS_LIST !== 'undefined' && Array.isArray(REGIONS_LIST)) {
+      REGIONS_LIST.forEach(r => counts[r] = 0);
+    }
+    if (Array.isArray(dataset)) {
+      dataset.forEach(item => {
+        if (item && item.region && counts[item.region] !== undefined) {
+          counts[item.region]++;
+        }
+      });
+    }
     return counts;
   }
 
