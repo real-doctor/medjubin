@@ -1,9 +1,10 @@
 /**
- * 대한민국 의사 아카이브 3분할(승인/검토/배제) 스마트 인제스천 & Git-as-a-DB 엔진 (admin.js)
+ * 대한민국 의사 아카이브 관리자 AI 스튜디오 & 실시간 크롤러 & Git-as-a-DB 모듈 (admin.js)
  * 
- * 1. 3분할 스마트 로컬 고속 트리거 (0.1초)
- * 2. Gemini 3.7+ AI 병렬 팩트체크 엔진
- * 3. Git-as-a-DB: GitHub REST API를 통해 브라우저에서 data.js를 직접 커밋 & 배포
+ * 1. 실시간 뉴스 자동 수집기 (Live Crawler with Date Range Filter)
+ * 2. 1차 3분할 로컬 고속 트리거 (0.1초 승인/검토/배제)
+ * 3. 2차 최신 Gemini 3.7+ AI 병렬 팩트체크 엔진
+ * 4. Git-as-a-DB: GitHub REST API를 통한 원클릭 DB 커밋 & '검토완료' 상태 자동 전환
  */
 
 const DEFAULT_GEMINI_SYSTEM_PROMPT = `너는 대한민국 언론에 보도된 기사를 정밀 팩트체크하여 '의사 범죄 아카이브'에 등재할지 판정하는 전문 AI 감사관이다.
@@ -26,12 +27,44 @@ const DEFAULT_GEMINI_SYSTEM_PROMPT = `너는 대한민국 언론에 보도된 �
   "legalStatus": "형사 처벌/수사 상태 (예: 징역 3년 선고, 구속 기소, 경찰 입건, 면허 박탈, 혐의 인정 등)"
 }`;
 
+// 43개 핵심 수집 쿼리 리스트
+const CRAWL_QUERIES = [
+  "의사 성폭행", "의사 성추행", "의사 강간", "의사 불법촬영", "의사 몰카", "의사 준강간", "의사 성범죄",
+  "의사 수면마취 성폭행", "의사 진료실 성추행", "병원장 성폭행", "원장 성추행", "의대생 성폭행", "의대생 몰카",
+  "의사 프로포폴", "의사 마약", "의사 향정", "의사 펜타닐", "의사 에토미데이트", "의사 마약류", "의사 불법투약",
+  "의사 대리수술", "의사 유령수술", "의사 무면허수술", "의사 영업사원 수술",
+  "의사 리베이트", "의사 보험사기", "의사 실손보험 사기", "의사 허위진단서", "의사 차트조작",
+  "의사 음주운전", "의사 음주진료", "의사 뺑소니", "의사 폭행", "의사 살인", "의사 마약처방",
+  "의사 상간남", "의사 불륜", "의사 면허취소", "의사 구속", "의사 실형", "의사 징역"
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   // State
-  let rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
+  const savedDynamicQueue = localStorage.getItem('admin_dynamic_queue');
+  let rawQueue = [];
+  if (savedDynamicQueue) {
+    try {
+      rawQueue = JSON.parse(savedDynamicQueue);
+    } catch (e) {
+      rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
+    }
+  } else {
+    rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
+  }
+
+  // Check published records
+  const publishedUrls = new Set(JSON.parse(localStorage.getItem('archive_published_urls') || '[]'));
+  rawQueue.forEach(item => {
+    if (publishedUrls.has(item.link) || publishedUrls.has(item.id)) {
+      item.isPublished = true;
+      item.aiStatus = 'published';
+    }
+  });
+
   let currentTab = 'all';
   let isAnalyzing = false;
   let cancelAnalysis = false;
+  let isCrawling = false;
   let currentPage = 1;
   const ITEMS_PER_PAGE = 30;
 
@@ -42,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize
   initPrompt();
   initApiKeys();
+  initDatePresets();
   initEventListeners();
   updateQueueStats();
   renderReviewList();
@@ -55,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initApiKeys() {
-    // Gemini Key
     const savedKey = localStorage.getItem('gemini_api_key') || '';
     const keyInput = document.getElementById('geminiApiKeyInput');
     if (keyInput) keyInput.value = savedKey;
@@ -64,14 +97,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelect = document.getElementById('geminiModelSelect');
     if (modelSelect) modelSelect.value = savedModel;
 
-    // GitHub PAT
     const savedGithubPat = localStorage.getItem('github_db_token') || '';
     const githubInput = document.getElementById('githubPatInput');
     if (githubInput) githubInput.value = savedGithubPat;
   }
 
+  function initDatePresets() {
+    document.querySelectorAll('.date-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const preset = btn.getAttribute('data-preset');
+        const startInput = document.getElementById('crawlStartDate');
+        const endInput = document.getElementById('crawlEndDate');
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        if (preset === '1m') {
+          const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          startInput.value = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
+          endInput.value = todayStr;
+        } else if (preset === '6m') {
+          const past = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+          startInput.value = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
+          endInput.value = todayStr;
+        } else if (preset === '2024') {
+          startInput.value = '2024-01-01';
+          endInput.value = '2024-12-31';
+        } else if (preset === 'all') {
+          startInput.value = '2020-01-01';
+          endInput.value = todayStr;
+        }
+      });
+    });
+  }
+
   function initEventListeners() {
-    // 1단계 3분할 필터 버튼
+    // 1. 실시간 뉴스 수집기 실행 버튼
+    const startLiveCrawlBtn = document.getElementById('startLiveCrawlBtn');
+    if (startLiveCrawlBtn) {
+      startLiveCrawlBtn.addEventListener('click', () => {
+        if (isCrawling) {
+          alert('이미 뉴스 수집이 진행 중입니다.');
+        } else {
+          runLiveNewsCrawler();
+        }
+      });
+    }
+
+    // 대기열 리셋 버튼
+    const resetQueueBtn = document.getElementById('resetQueueBtn');
+    if (resetQueueBtn) {
+      resetQueueBtn.addEventListener('click', () => {
+        if (confirm('대기열을 초기 수집 원본(2,019건) 상태로 리셋하시겠습니까?')) {
+          localStorage.removeItem('admin_dynamic_queue');
+          rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
+          updateQueueStats();
+          renderReviewList();
+          alert('대기열이 초기화되었습니다.');
+        }
+      });
+    }
+
+    // 2. 1단계 3분할 필터 버튼
     const runStage1Btn = document.getElementById('runStage1Btn');
     if (runStage1Btn) {
       runStage1Btn.addEventListener('click', () => {
@@ -79,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 2단계 '검토 대상'만 AI 팩트체크 버튼
+    // 3. 2단계 '검토 대상'만 AI 팩트체크 버튼
     const runStage2Btn = document.getElementById('runStage2Btn');
     if (runStage2Btn) {
       runStage2Btn.addEventListener('click', () => {
@@ -93,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 3분할 전체 일괄 실행 버튼
+    // 4. 3분할 전체 일괄 실행 버튼
     const startPipelineBtn = document.getElementById('startPipelineBtn');
     if (startPipelineBtn) {
       startPipelineBtn.addEventListener('click', async () => {
@@ -108,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Save Gemini Key & Model
+    // Save Gemini Key
     const saveKeyBtn = document.getElementById('saveApiKeyBtn');
     if (saveKeyBtn) {
       saveKeyBtn.addEventListener('click', () => {
@@ -147,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleGithubKeyVisibilityBtn && githubInput) {
       toggleGithubKeyVisibilityBtn.addEventListener('click', () => {
         const isPassword = githubInput.type === 'password';
-        githubInput.type = isPassword ? 'text' : 'password';
+        keyInput.type = isPassword ? 'text' : 'password';
         toggleGithubKeyVisibilityBtn.innerHTML = isPassword ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
       });
     }
@@ -160,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Header Publish Button (Calls Git-as-a-DB)
+    // Header Publish Button
     const publishBtn = document.getElementById('publishApprovedBtn');
     if (publishBtn) {
       publishBtn.addEventListener('click', () => {
@@ -197,7 +289,114 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 1단계: 스마트 3분할 (통과 / 검토 / 배제) 로컬 고속 필터 (0.1초)
+  // 1. 실시간 뉴스 자동 수집기 (Live In-Browser News Crawler)
+  // =========================================================================
+  async function runLiveNewsCrawler() {
+    isCrawling = true;
+    const startDate = document.getElementById('crawlStartDate')?.value || '2020-01-01';
+    const endDate = document.getElementById('crawlEndDate')?.value || '2026-12-31';
+    const statusBox = document.getElementById('crawlerStatusBox');
+    const startBtn = document.getElementById('startLiveCrawlBtn');
+
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 뉴스 수집 중...';
+    }
+
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      statusBox.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> 기간(${startDate} ~ ${endDate})에 맞추어 언론사 기사 검색 및 크롤링 중...`;
+    }
+
+    const existingLinks = new Set(rawQueue.map(d => d.link));
+    let newlyFoundCount = 0;
+    const totalQueries = CRAWL_QUERIES.length;
+
+    for (let qIdx = 0; qIdx < totalQueries; qIdx++) {
+      const query = CRAWL_QUERIES[qIdx];
+      if (statusBox) {
+        statusBox.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> [${qIdx + 1}/${totalQueries}] '${query}' (${startDate}~${endDate}) 실시간 검색 중... (신규 수집: ${newlyFoundCount}건)`;
+      }
+
+      try {
+        const encodedQ = encodeURIComponent(`${query} after:${startDate} before:${endDate}`);
+        const rssUrl = `https://news.google.com/rss/search?q=${encodedQ}&hl=ko&gl=KR&ceid=KR:ko`;
+        
+        // CORS Proxy fetcher
+        let xmlText = null;
+        try {
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`);
+          if (res.ok) xmlText = await res.text();
+        } catch (e) {
+          try {
+            const res2 = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`);
+            if (res2.ok) xmlText = await res2.text();
+          } catch (e2) {}
+        }
+
+        if (xmlText && xmlText.includes('<item>')) {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+          const items = xmlDoc.querySelectorAll('item');
+
+          items.forEach(node => {
+            const rawTitle = node.querySelector('title')?.textContent || '';
+            const link = node.querySelector('link')?.textContent || '';
+            const pubDate = node.querySelector('pubDate')?.textContent || '';
+            const desc = node.querySelector('description')?.textContent || '';
+            const source = node.querySelector('source')?.textContent || '언론보도';
+
+            if (link && !existingLinks.has(link)) {
+              existingLinks.add(link);
+              newlyFoundCount++;
+
+              let category = "other_crimes";
+              if (/성폭행|성추행|성범죄|추행|몰카|불법촬영/.test(rawTitle)) category = "sex_crime";
+              else if (/프로포폴|마약|향정|펜타닐|에토미데이트/.test(rawTitle)) category = "narcotics";
+              else if (/대리수술|유령수술|무면허/.test(rawTitle)) category = "proxy_surgery";
+              else if (/의료사고|사망|과실/.test(rawTitle)) category = "malpractice_hazard";
+              else if (/리베이트|보험사기|사기/.test(rawTitle)) category = "fraud_rebate";
+
+              rawQueue.unshift({
+                id: `CRAWL-${Date.now()}-${newlyFoundCount}`,
+                title: rawTitle,
+                link: link,
+                media: source,
+                pubDate: pubDate,
+                desc: desc.replace(/<[^>]*>?/gm, ''),
+                query: query,
+                category: category,
+                triage: 'pending',
+                aiStatus: 'pending'
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.warn(`Query '${query}' failed:`, err);
+      }
+
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    isCrawling = false;
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<i class="ri-play-circle-fill"></i> 실시간 뉴스 수집 시작';
+    }
+
+    if (statusBox) {
+      statusBox.innerHTML = `<strong><i class="ri-checkbox-circle-fill"></i> 실시간 뉴스 수집 완료!</strong> 신규 기사 <strong>${newlyFoundCount}건</strong>이 대기열에 추가되었습니다. (총 대기열: ${rawQueue.length}건)`;
+    }
+
+    localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+    updateQueueStats();
+    renderReviewList();
+    alert(`🎉 실시간 뉴스 수집 완료!\n지정하신 기간(${startDate} ~ ${endDate})에서 신규 기사 총 ${newlyFoundCount}건을 대기열에 수집했습니다.\n이제 [1단계 3분할 필터 실행]을 눌러 검토를 진행해 주세요.`);
+  }
+
+  // =========================================================================
+  // 2단계: 스마트 3분할 (통과 / 검토 / 배제) 로컬 고속 필터 (0.1초)
   // =========================================================================
   async function runStage1ThreeWayFilter() {
     const total = rawQueue.length;
@@ -210,6 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (let i = 0; i < total; i++) {
       const item = rawQueue[i];
+      // 이미 DB 발행 완료된 기사는 건너뜀
+      if (item.isPublished) continue;
+
       const title = item.title || '';
       const desc = item.desc || '';
       const fullText = `${title} ${desc}`;
@@ -230,8 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // -------------------------------------------------------------------
       const HANJA_COUNTRIES = '美|日|中|印|英|佛|獨|露|泰|越|豪|加|伊|西|俄';
       const hasHanjaCountry = new RegExp(
-        `[\\[\\(](${HANJA_COUNTRIES})[\\]\\)]|` + // [日], (美), (印)
-        `(^|[\\s“"'\`])(${HANJA_COUNTRIES})\\s*(\\d+대|[가-힣A-Za-z]+)?\\s*(의사|의료진|병원|의원|수련의|전문의|환자|법원|경찰|남|여|여성|남성)?|` + // 日 60대 의사, 印의사들
+        `[\\[\\(](${HANJA_COUNTRIES})[\\]\\)]|` +
+        `(^|[\\s“"'\`])(${HANJA_COUNTRIES})\\s*(\\d+대|[가-힣A-Za-z]+)?\\s*(의사|의료진|병원|의원|수련의|전문의|환자|법원|경찰|남|여|여성|남성)?|` +
         `(${HANJA_COUNTRIES})(의사|수련의|병원|의원|법원|경찰)`
       ).test(title);
 
@@ -332,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (countReviewEl) countReviewEl.textContent = `${reviewCount}건`;
     if (countRejectEl) countRejectEl.textContent = `${rejectCount}건`;
 
+    localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
     updateQueueStats();
     renderReviewList();
   }
@@ -388,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 2단계: 최신 Gemini 3.7+ AI 병렬 팩트체크 ('검토 대상' 기사만 선별 처리)
+  // 3단계: 최신 Gemini 3.7+ AI 병렬 팩트체크 ('검토 대상' 기사만 선별 처리)
   // =========================================================================
   async function runStage2AIFilter() {
     isAnalyzing = true;
@@ -402,8 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('aiProgressBar');
     const progressText = document.getElementById('aiProgressText');
 
-    // '검토 대상' 기사만 타겟팅
-    const targetItems = rawQueue.filter(item => item.aiStatus === 'review');
+    // '검토 대상' 기사만 타겟팅 (발행된 건 제외)
+    const targetItems = rawQueue.filter(item => item.aiStatus === 'review' && !item.isPublished);
 
     if (targetItems.length === 0) {
       alert("2단계 AI 검토 대상(⚠️ '검토') 기사가 없습니다.\n먼저 [1단계 3분할 필터 실행]을 눌러주세요.");
@@ -439,6 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (progressBar) progressBar.style.width = `${pct}%`;
       if (progressText) progressText.textContent = `2단계 AI 검토 중 (${concurrency}개 병렬): ${processedCount} / ${total}건 완료 (${pct}%)`;
 
+      localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
       updateQueueStats();
       renderReviewList();
       await new Promise(r => setTimeout(r, 50));
@@ -447,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isAnalyzing = false;
     if (runStage2Btn) runStage2Btn.innerHTML = '<i class="ri-robot-2-fill"></i> 2단계 AI 팩트체크 완료';
 
+    localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
     updateQueueStats();
     renderReviewList();
     alert(`🎉 2단계 AI 정밀 검토가 완료되었습니다! (검토 대상 ${processedCount}건 팩트체크 완료)`);
@@ -658,13 +863,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 3. Git-as-a-DB: GitHub REST API 직접 커밋 & 배포 엔진
+  // 4. Git-as-a-DB: GitHub REST API 직접 커밋 & '검토완료' 상태 전환
   // =========================================================================
   function generateFormattedDataJs() {
-    const approvedItems = rawQueue.filter(d => d.aiStatus === 'approved');
-    if (approvedItems.length === 0) return null;
+    // 승인 대상(발행대기) 및 이미 발행된 대상 전체 합산
+    const targetItems = rawQueue.filter(d => d.aiStatus === 'approved' || d.aiStatus === 'published');
+    if (targetItems.length === 0) return null;
 
-    const formattedRecords = approvedItems.map((item, idx) => {
+    const formattedRecords = targetItems.map((item, idx) => {
       let yearNum = 2023;
       let dateStr = "2023-01-01";
       if (item.pubDate) {
@@ -731,10 +937,9 @@ const REGIONS_LIST = [
 ];
 `;
 
-    return { records: formattedRecords, code: dataJsCode };
+    return { records: formattedRecords, code: dataJsCode, sourceItems: targetItems };
   }
 
-  // UTF-8 to Base64 encoder (safe for Korean Unicode)
   function utf8ToBase64(str) {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
       return String.fromCharCode('0x' + p1);
@@ -760,7 +965,6 @@ const REGIONS_LIST = [
     }
 
     localStorage.setItem('github_db_token', token);
-    localStorage.setItem('archive_published_data', JSON.stringify(formatted.records));
 
     if (syncBtn) {
       syncBtn.disabled = true;
@@ -817,20 +1021,39 @@ const REGIONS_LIST = [
         const putData = await putRes.json();
         const commitUrl = putData.commit ? putData.commit.html_url : `https://github.com/${repoPath}/commits/${branch}`;
 
+        // Mark published items as 'published' (검토완료)
+        const publishedUrlList = JSON.parse(localStorage.getItem('archive_published_urls') || '[]');
+        const pubSet = new Set(publishedUrlList);
+
+        formatted.sourceItems.forEach(item => {
+          item.isPublished = true;
+          item.aiStatus = 'published';
+          item.aiReason = '🚀 [검토완료] GitHub DB 커밋 및 아카이브 발행 완료';
+          if (item.link) pubSet.add(item.link);
+          if (item.id) pubSet.add(item.id);
+        });
+
+        localStorage.setItem('archive_published_urls', JSON.stringify(Array.from(pubSet)));
+        localStorage.setItem('archive_published_data', JSON.stringify(formatted.records));
+        localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+
+        updateQueueStats();
+        renderReviewList();
+
         if (statusBox) {
           statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
           statusBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
           statusBox.style.color = '#6ee7b7';
           statusBox.innerHTML = `
-            <strong><i class="ri-checkbox-circle-fill"></i> Git-as-a-DB 동기화 성공!</strong><br>
-            총 <strong>${formatted.records.length}건</strong>의 승인 사건이 GitHub <code>main</code> 브랜치에 직접 커밋되었습니다.<br>
+            <strong><i class="ri-checkbox-circle-fill"></i> Git-as-a-DB 동기화 및 발행 완료!</strong><br>
+            총 <strong>${formatted.records.length}건</strong>이 GitHub <code>main</code> 브랜치에 직접 커밋되었으며 <strong>'검토완료'</strong> 탭으로 이동되었습니다.<br>
             <a href="${commitUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; margin-top: 0.3rem; display: inline-block;">
               <i class="ri-external-link-line"></i> GitHub 커밋 내역 확인하기 (${commitUrl.slice(-7)})
             </a>
           `;
         }
 
-        alert(`🎉 Git-as-a-DB 동기화 완료!\n총 ${formatted.records.length}건이 GitHub 저장소에 즉시 커밋되었습니다.\nGitHub Pages에 30초 내로 자동 배포됩니다.`);
+        alert(`🎉 Git-as-a-DB 동기화 완료!\n총 ${formatted.records.length}건이 GitHub 저장소에 커밋되었으며 '검토완료' 탭으로 이동되었습니다.`);
       } else {
         const errData = await putRes.json().catch(() => ({}));
         throw new Error(errData.message || `HTTP ${putRes.status}`);
@@ -840,13 +1063,13 @@ const REGIONS_LIST = [
         statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
         statusBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
         statusBox.style.color = '#fca5a5';
-        statusBox.innerHTML = `<strong><i class="ri-error-warning-fill"></i> GitHub DB 동기화 실패:</strong> ${err.message}<br><span style="font-size:0.75rem;">(토큰 권한이 올바른지 확인하거나 data.js 다운로드 버튼을 이용해 주세요.)</span>`;
+        statusBox.innerHTML = `<strong><i class="ri-error-warning-fill"></i> GitHub DB 동기화 실패:</strong> ${err.message}`;
       }
       alert(`GitHub DB 커밋 실패: ${err.message}`);
     } finally {
       if (syncBtn) {
         syncBtn.disabled = false;
-        syncBtn.innerHTML = '<i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋';
+        syncBtn.innerHTML = '<i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋 & 발행';
       }
     }
   }
@@ -854,11 +1077,21 @@ const REGIONS_LIST = [
   function downloadDataJsFileLocally() {
     const formatted = generateFormattedDataJs();
     if (!formatted) {
-      alert('최종 승인된 기사가 없습니다. 1단계 필터 또는 2단계 AI 검토를 실행해 주세요.');
+      alert('발행할 승인 기사가 없습니다.');
       return;
     }
 
+    formatted.sourceItems.forEach(item => {
+      item.isPublished = true;
+      item.aiStatus = 'published';
+      item.aiReason = '🚀 [검토완료] data.js 로컬 다운로드 완료';
+    });
+
     localStorage.setItem('archive_published_data', JSON.stringify(formatted.records));
+    localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+
+    updateQueueStats();
+    renderReviewList();
 
     const blob = new Blob([formatted.code], { type: 'application/javascript' });
     const a = document.createElement('a');
@@ -866,31 +1099,35 @@ const REGIONS_LIST = [
     a.download = 'data.js';
     a.click();
 
-    alert(`🎉 총 ${formatted.records.length}건의 승인 사건이 담긴 data.js 파일이 다운로드되었습니다.`);
+    alert(`🎉 총 ${formatted.records.length}건이 담긴 data.js 파일이 다운로드되었으며 '검토완료' 탭으로 이동되었습니다.`);
   }
 
   // Queue Statistics
   function updateQueueStats() {
     let total = rawQueue.length;
+    let published = 0;
     let approved = 0;
     let reviewCount = 0;
     let rejected = 0;
     let pending = 0;
 
     rawQueue.forEach(item => {
-      if (item.aiStatus === 'approved') approved++;
+      if (item.isPublished || item.aiStatus === 'published') published++;
+      else if (item.aiStatus === 'approved') approved++;
       else if (item.aiStatus === 'review') reviewCount++;
       else if (item.aiStatus === 'rejected') rejected++;
       else pending++;
     });
 
     const badgeAll = document.getElementById('badgeCountAll');
+    const badgePub = document.getElementById('badgeCountPublished');
     const badgeApp = document.getElementById('badgeCountApproved');
     const badgeRev = document.getElementById('badgeCountReview');
     const badgeRej = document.getElementById('badgeCountRejected');
     const badgePen = document.getElementById('badgeCountPending');
 
     if (badgeAll) badgeAll.textContent = total;
+    if (badgePub) badgePub.textContent = published;
     if (badgeApp) badgeApp.textContent = approved;
     if (badgeRev) badgeRev.textContent = reviewCount;
     if (badgeRej) badgeRej.textContent = rejected;
@@ -898,7 +1135,7 @@ const REGIONS_LIST = [
 
     const statSummary = document.getElementById('aiStatsSummary');
     if (statSummary) {
-      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (최종승인: <span style="color:#10b981;">${approved}건</span>, AI검토대상: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제/탈락: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
+      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (검토완료: <span style="color:#38bdf8;">${published}건</span>, 승인대기: <span style="color:#10b981;">${approved}건</span>, AI검토: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
     }
   }
 
@@ -908,14 +1145,16 @@ const REGIONS_LIST = [
     if (!container) return;
 
     let filtered = rawQueue;
-    if (currentTab === 'approved') {
-      filtered = rawQueue.filter(d => d.aiStatus === 'approved');
+    if (currentTab === 'published') {
+      filtered = rawQueue.filter(d => d.isPublished || d.aiStatus === 'published');
+    } else if (currentTab === 'approved') {
+      filtered = rawQueue.filter(d => d.aiStatus === 'approved' && !d.isPublished);
     } else if (currentTab === 'review') {
-      filtered = rawQueue.filter(d => d.aiStatus === 'review');
+      filtered = rawQueue.filter(d => d.aiStatus === 'review' && !d.isPublished);
     } else if (currentTab === 'rejected') {
-      filtered = rawQueue.filter(d => d.aiStatus === 'rejected');
+      filtered = rawQueue.filter(d => d.aiStatus === 'rejected' && !d.isPublished);
     } else if (currentTab === 'pending') {
-      filtered = rawQueue.filter(d => !d.aiStatus || d.aiStatus === 'pending');
+      filtered = rawQueue.filter(d => (!d.aiStatus || d.aiStatus === 'pending') && !d.isPublished);
     }
 
     if (filtered.length === 0) {
@@ -933,14 +1172,18 @@ const REGIONS_LIST = [
 
     let html = '';
     pageItems.forEach(item => {
-      const isApproved = item.aiStatus === 'approved';
-      const isReview = item.aiStatus === 'review';
-      const isRejected = item.aiStatus === 'rejected';
+      const isPublished = item.isPublished || item.aiStatus === 'published';
+      const isApproved = item.aiStatus === 'approved' && !isPublished;
+      const isReview = item.aiStatus === 'review' && !isPublished;
+      const isRejected = item.aiStatus === 'rejected' && !isPublished;
 
       let statusIcon = '<i class="ri-time-line"></i>';
       let statusClass = 'status-pending';
-      if (isApproved) {
-        statusIcon = '<i class="ri-checkbox-circle-fill"></i>';
+      if (isPublished) {
+        statusIcon = '<i class="ri-checkbox-circle-fill" style="color: #38bdf8;"></i>';
+        statusClass = 'status-published';
+      } else if (isApproved) {
+        statusIcon = '<i class="ri-check-double-line"></i>';
         statusClass = 'status-approved';
       } else if (isReview) {
         statusIcon = '<i class="ri-error-warning-fill"></i>';
@@ -957,11 +1200,14 @@ const REGIONS_LIST = [
           </div>
 
           <div class="review-content">
-            <div class="review-title">${item.title}</div>
+            <div class="review-title">
+              ${isPublished ? '<span class="badge" style="background: rgba(56,189,248,0.2); color:#38bdf8; font-size:0.72rem; margin-right:0.4rem;">DB발행완료</span>' : ''}
+              ${item.title}
+            </div>
             <div class="review-meta">
               <span><i class="ri-newspaper-line"></i> ${item.media}</span>
               <span><i class="ri-calendar-line"></i> ${item.pubDate ? item.pubDate.slice(0, 16) : ''}</span>
-              ${item.aiReason ? `<span class="ai-reason-pill ${isApproved ? 'approved' : isReview ? 'review' : 'rejected'}">${item.aiReason}</span>` : ''}
+              ${item.aiReason ? `<span class="ai-reason-pill ${isPublished ? 'published' : isApproved ? 'approved' : isReview ? 'review' : 'rejected'}">${item.aiReason}</span>` : ''}
               ${item.aiMeta ? `<span class="badge badge-region">${item.aiMeta.region} · ${item.aiMeta.specialty}</span>` : ''}
             </div>
           </div>
@@ -988,11 +1234,17 @@ const REGIONS_LIST = [
     const item = rawQueue.find(d => d.id === id);
     if (item) {
       item.aiStatus = newStatus;
+      item.isPublished = (newStatus === 'published');
       item.aiEvaluated = true;
-      item.aiReason = newStatus === 'approved' ? '✅ [수동 승인] 관리자 직접 검토 및 승인' : '❌ [수동 반려] 관리자 직접 반려 처리';
+      item.aiReason = newStatus === 'approved' 
+        ? '✅ [수동 승인] 관리자 직접 검토 및 승인' 
+        : newStatus === 'published' 
+        ? '🚀 [검토완료] DB 발행 완료' 
+        : '❌ [수동 반려] 관리자 직접 반려 처리';
       if (newStatus === 'approved' && !item.aiMeta) {
         item.aiMeta = extractMetadataLocally(item);
       }
+      localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
       updateQueueStats();
       renderReviewList();
     }

@@ -33,7 +33,7 @@
               관리자 AI 스튜디오
               <span class="brand-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4);">GIT-AS-A-DB</span>
             </h1>
-            <p class="brand-sub">1차 3분할(승인/검토/배제) ➔ 2차 AI 선별 ➔ GitHub DB 원클릭 직접 커밋</p>
+            <p class="brand-sub">실시간 뉴스 수집 ➔ 1차 3분할 ➔ 2차 AI 선별 ➔ GitHub DB 자동 커밋</p>
           </div>
         </div>
 
@@ -50,7 +50,57 @@
 
     <main class="admin-layout">
       
-      <!-- 3-Way Triage Pipeline Control Panel -->
+      <!-- 1. Live News Crawler Panel (실시간 날짜 지정 뉴스 자동 수집기) -->
+      <section class="live-crawler-panel" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="ri-radar-line"></i>
+            </div>
+            <div>
+              <h3 style="font-size: 0.98rem; font-weight: 800; color: #e0f2fe; margin-bottom: 0.1rem;">
+                실시간 언론 뉴스 자동 수집기 (Live Crawler)
+              </h3>
+              <p style="font-size: 0.78rem; color: var(--text-muted);">
+                날짜 범위를 지정하여 포털 및 공중파/주요 일간지의 의사 사건 보도 기사를 실시간 크롤링합니다.
+              </p>
+            </div>
+          </div>
+
+          <!-- Date Range Quick Presets -->
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="1m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">최근 1개월</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="6m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">최근 6개월</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="2024" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">2024년 전체</button>
+            <button type="button" class="btn btn-secondary date-preset-btn active" data-preset="all" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">2020~2024 전체</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.6rem; width: 100%; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 280px;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap;">기간 설정:</label>
+            <input type="date" id="crawlStartDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2020-01-01">
+            <span style="color: var(--text-muted);">~</span>
+            <input type="date" id="crawlEndDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2026-12-31">
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="startLiveCrawlBtn" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.2rem; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+              <i class="ri-play-circle-fill"></i> 실시간 뉴스 수집 시작
+            </button>
+            <button id="resetQueueBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="대기열 초기화">
+              <i class="ri-refresh-line"></i> 대기열 리셋
+            </button>
+          </div>
+        </div>
+
+        <!-- Crawler Progress Box -->
+        <div id="crawlerStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd;">
+          <i class="ri-loader-4-line ri-spin"></i> 뉴스 수집 진행 중...
+        </div>
+      </section>
+
+      <!-- 2. 3-Way Triage Pipeline Control Panel -->
       <section class="ai-control-panel">
         <div class="ai-header-row">
           <div class="ai-title-wrap">
@@ -139,7 +189,7 @@
             </button>
 
             <button id="syncGitDbBtn" class="btn btn-primary" style="font-size: 0.85rem; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-              <i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋
+              <i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋 & 발행
             </button>
 
             <button id="downloadLocalDataBtn" class="btn btn-secondary" style="font-size: 0.82rem;" title="data.js 파일로 직접 다운로드">
@@ -217,14 +267,17 @@
         </div>
       </section>
 
-      <!-- Review Tabs and Filter Controls -->
+      <!-- 3. Review Tabs and Filter Controls (검토완료 탭 포함) -->
       <section class="review-tabs-row">
         <div class="review-tabs">
           <button class="review-tab-btn active" data-tab="all">
             <i class="ri-list-unordered"></i> 전체 대기열 <span class="badge-num" id="badgeCountAll">0</span>
           </button>
+          <button class="review-tab-btn" data-tab="published" style="color: #38bdf8;">
+            <i class="ri-checkbox-circle-fill"></i> 검토완료 (DB발행됨) <span class="badge-num" id="badgeCountPublished">0</span>
+          </button>
           <button class="review-tab-btn" data-tab="approved" style="color: #10b981;">
-            <i class="ri-checkbox-circle-fill"></i> 최종 승인 <span class="badge-num" id="badgeCountApproved">0</span>
+            <i class="ri-check-double-line"></i> 승인 (발행대기) <span class="badge-num" id="badgeCountApproved">0</span>
           </button>
           <button class="review-tab-btn" data-tab="review" style="color: #f59e0b;">
             <i class="ri-error-warning-fill"></i> AI 검토 대상 <span class="badge-num" id="badgeCountReview">0</span>
