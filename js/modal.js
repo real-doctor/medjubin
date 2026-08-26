@@ -193,9 +193,16 @@ const ModalModule = (() => {
     }
   }
 
-  const adminAuthModal = document.getElementById('adminAuthModal');
+  function openDisclaimerModal() {
+    const disclaimerModal = document.getElementById('disclaimerModal');
+    if (disclaimerModal) {
+      disclaimerModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
 
   function openAdminAuthModal() {
+    const adminAuthModal = document.getElementById('adminAuthModal');
     if (adminAuthModal) {
       const pwdInput = document.getElementById('adminSecretPasswordInput');
       const errBox = document.getElementById('adminAuthErrorMsg');
@@ -215,6 +222,8 @@ const ModalModule = (() => {
   }
 
   function showToast(message) {
+    const toastElement = document.getElementById('toastMsg');
+    const toastText = document.getElementById('toastText');
     if (!toastElement || !toastText) return;
     toastText.textContent = message;
     toastElement.classList.add('show');
