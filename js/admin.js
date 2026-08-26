@@ -102,38 +102,66 @@ document.addEventListener('DOMContentLoaded', () => {
     if (githubInput) githubInput.value = savedGithubPat;
   }
 
-  function initDatePresets() {
-    document.querySelectorAll('.date-preset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+  // Global Date Preset Setter (버튼 클릭 시 즉시 날짜 인풋 세팅)
+  window.setDatePreset = function(preset, btnElement) {
+    const startInput = document.getElementById('crawlStartDate');
+    const endInput = document.getElementById('crawlEndDate');
+    if (!startInput || !endInput) return;
 
-        const preset = btn.getAttribute('data-preset');
-        const startInput = document.getElementById('crawlStartDate');
-        const endInput = document.getElementById('crawlEndDate');
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const todayStr = `${yyyy}-${mm}-${dd}`;
+    const now = new Date();
+    const formatDate = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
 
-        if (preset === '1m') {
-          const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          startInput.value = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
-          endInput.value = todayStr;
-        } else if (preset === '6m') {
-          const past = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-          startInput.value = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
-          endInput.value = todayStr;
-        } else if (preset === '2024') {
-          startInput.value = '2024-01-01';
-          endInput.value = '2024-12-31';
-        } else if (preset === 'all') {
-          startInput.value = '2020-01-01';
-          endInput.value = todayStr;
-        }
-      });
+    const todayStr = formatDate(now);
+
+    if (preset === '1m') {
+      const past = new Date(now);
+      past.setMonth(past.getMonth() - 1);
+      startInput.value = formatDate(past);
+      endInput.value = todayStr;
+    } else if (preset === '6m') {
+      const past = new Date(now);
+      past.setMonth(past.getMonth() - 6);
+      startInput.value = formatDate(past);
+      endInput.value = todayStr;
+    } else if (preset === '1y') {
+      const past = new Date(now);
+      past.setFullYear(past.getFullYear() - 1);
+      startInput.value = formatDate(past);
+      endInput.value = todayStr;
+    } else if (preset === '2025') {
+      startInput.value = '2025-01-01';
+      endInput.value = '2025-12-31';
+    } else if (preset === '2024') {
+      startInput.value = '2024-01-01';
+      endInput.value = '2024-12-31';
+    } else if (preset === 'all') {
+      startInput.value = '2020-01-01';
+      endInput.value = todayStr;
+    }
+
+    // Visual button active state toggle
+    document.querySelectorAll('.date-preset-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.background = '';
+      b.style.borderColor = '';
+      b.style.color = '';
     });
+
+    if (btnElement) {
+      btnElement.classList.add('active');
+      btnElement.style.background = 'rgba(56, 189, 248, 0.2)';
+      btnElement.style.borderColor = '#38bdf8';
+      btnElement.style.color = '#38bdf8';
+    }
+  };
+
+  function initDatePresets() {
+    // Initial setup if needed
   }
 
   function initEventListeners() {

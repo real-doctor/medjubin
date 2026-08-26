@@ -69,10 +69,12 @@
 
           <!-- Date Range Quick Presets -->
           <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="1m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">최근 1개월</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="6m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">최근 6개월</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" data-preset="2024" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">2024년 전체</button>
-            <button type="button" class="btn btn-secondary date-preset-btn active" data-preset="all" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">2020~2024 전체</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1개월</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('6m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 6개월</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1y', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1년</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2025', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2025년 전체</button>
+            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2024', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2024년 전체</button>
+            <button type="button" class="btn btn-secondary date-preset-btn active" onclick="setDatePreset('all', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">2020~현재 전체</button>
           </div>
         </div>
 
