@@ -1165,12 +1165,20 @@ const REGIONS_LIST = [
   function updateQueueStats() {
     let total = rawQueue.length;
     let published = 0;
+    let reported = 0;
     let approved = 0;
     let reviewCount = 0;
     let rejected = 0;
     let pending = 0;
 
+    const allReports = (() => {
+      try { return JSON.parse(localStorage.getItem('archive_report_counts') || '{}'); } catch(e) { return {}; }
+    })();
+
     rawQueue.forEach(item => {
+      const repCount = allReports[item.id] || 0;
+      if (repCount >= 10) reported++;
+
       if (item.isPublished || item.aiStatus === 'published') published++;
       else if (item.aiStatus === 'approved') approved++;
       else if (item.aiStatus === 'review') reviewCount++;
@@ -1180,6 +1188,7 @@ const REGIONS_LIST = [
 
     const badgeAll = document.getElementById('badgeCountAll');
     const badgePub = document.getElementById('badgeCountPublished');
+    const badgeRep = document.getElementById('badgeCountReported');
     const badgeApp = document.getElementById('badgeCountApproved');
     const badgeRev = document.getElementById('badgeCountReview');
     const badgeRej = document.getElementById('badgeCountRejected');
@@ -1187,6 +1196,7 @@ const REGIONS_LIST = [
 
     if (badgeAll) badgeAll.textContent = total;
     if (badgePub) badgePub.textContent = published;
+    if (badgeRep) badgeRep.textContent = reported;
     if (badgeApp) badgeApp.textContent = approved;
     if (badgeRev) badgeRev.textContent = reviewCount;
     if (badgeRej) badgeRej.textContent = rejected;
@@ -1194,7 +1204,7 @@ const REGIONS_LIST = [
 
     const statSummary = document.getElementById('aiStatsSummary');
     if (statSummary) {
-      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (검토완료: <span style="color:#38bdf8;">${published}건</span>, 승인대기: <span style="color:#10b981;">${approved}건</span>, AI검토: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
+      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (검토완료: <span style="color:#38bdf8;">${published}건</span>, <span style="color:#f87171;">다수신고(10+): ${reported}건</span>, 승인대기: <span style="color:#10b981;">${approved}건</span>, AI검토: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
     }
   }
 
@@ -1203,8 +1213,15 @@ const REGIONS_LIST = [
     const container = document.getElementById('reviewItemsList');
     if (!container) return;
 
+    const allReports = (() => {
+      try { return JSON.parse(localStorage.getItem('archive_report_counts') || '{}'); } catch(e) { return {}; }
+    })();
+
     let filtered = rawQueue;
-    if (currentTab === 'published') {
+    if (currentTab === 'reported') {
+      filtered = rawQueue.filter(d => (allReports[d.id] || 0) >= 10);
+      filtered.sort((a, b) => (allReports[b.id] || 0) - (allReports[a.id] || 0));
+    } else if (currentTab === 'published') {
       filtered = rawQueue.filter(d => d.isPublished || d.aiStatus === 'published');
     } else if (currentTab === 'approved') {
       filtered = rawQueue.filter(d => d.aiStatus === 'approved' && !d.isPublished);
@@ -1220,7 +1237,7 @@ const REGIONS_LIST = [
       container.innerHTML = `
         <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
           <i class="ri-inbox-line" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;"></i>
-          해당 탭에 표시할 기사가 없습니다.
+          ${currentTab === 'reported' ? '10회 이상 신고된 기사가 없습니다. (정상 운영 중)' : '해당 탭에 표시할 기사가 없습니다.'}
         </div>
       `;
       return;
@@ -1252,9 +1269,6 @@ const REGIONS_LIST = [
         statusClass = 'status-rejected';
       }
 
-      const allReports = (() => {
-        try { return JSON.parse(localStorage.getItem('archive_report_counts') || '{}'); } catch(e) { return {}; }
-      })();
       const reportCount = allReports[item.id] || 0;
 
       html += `
@@ -1266,7 +1280,7 @@ const REGIONS_LIST = [
           <div class="review-content">
             <div class="review-title">
               ${isPublished ? '<span class="badge" style="background: rgba(56,189,248,0.2); color:#38bdf8; font-size:0.72rem; margin-right:0.4rem;">DB발행완료</span>' : ''}
-              ${reportCount > 0 ? `<span class="badge" style="background: rgba(248,113,113,0.2); color:#f87171; border: 1px solid rgba(248,113,113,0.4); font-size:0.72rem; margin-right:0.4rem;"><i class="ri-alarm-warning-fill"></i> 신고 ${reportCount}회</span>` : ''}
+              ${reportCount > 0 ? `<span class="badge" style="background: rgba(248,113,113,0.2); color:#f87171; border: 1px solid rgba(248,113,113,0.4); font-size:0.72rem; margin-right:0.4rem; font-weight:700;"><i class="ri-alarm-warning-fill"></i> 누적 신고 ${reportCount}회</span>` : ''}
               ${item.title}
             </div>
             <div class="review-meta">
@@ -1277,7 +1291,12 @@ const REGIONS_LIST = [
             </div>
           </div>
 
-          <div class="review-actions">
+          <div class="review-actions" style="display: flex; gap: 0.4rem; align-items: center;">
+            ${reportCount > 0 ? `
+              <button class="btn btn-secondary" onclick="resetSingleArticleReport('${item.id}')" style="color: #38bdf8; border-color: rgba(56,189,248,0.4); padding: 0.35rem 0.65rem; font-size: 0.76rem;" title="악의적 신고 방지: 이 기사의 신고 카운트 0으로 초기화">
+                <i class="ri-refresh-line"></i> 신고 리셋
+              </button>
+            ` : ''}
             <button class="btn-approve" onclick="manualStatusOverride('${item.id}', 'approved')" title="수동 승인">
               <i class="ri-check-line"></i> 승인
             </button>
@@ -1294,6 +1313,26 @@ const REGIONS_LIST = [
 
     container.innerHTML = html;
   }
+
+  // Single Article Report Count Reset (개별 기사 신고 카운트 0으로 리셋)
+  window.resetSingleArticleReport = (id) => {
+    if (confirm('해당 기사의 이용자 신고 누적 횟수를 0으로 리셋하시겠습니까?\n(메인 화면에서 숨김 처리되었던 경우 다시 정상 노출됩니다.)')) {
+      let reports = {};
+      try {
+        reports = JSON.parse(localStorage.getItem('archive_report_counts') || '{}');
+      } catch(e) {}
+
+      delete reports[id];
+      localStorage.setItem('archive_report_counts', JSON.stringify(reports));
+
+      // Clear local voter flag for this session
+      localStorage.removeItem('archive_has_reported_' + id);
+
+      alert('해당 기사의 신고 카운트가 0으로 초기화되어 메인 화면에 정상 노출됩니다.');
+      updateQueueStats();
+      renderReviewList();
+    }
+  };
 
   window.manualStatusOverride = (id, newStatus) => {
     const item = rawQueue.find(d => d.id === id);
