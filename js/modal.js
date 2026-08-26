@@ -137,10 +137,17 @@ const ModalModule = (() => {
     }
   }
 
-  function openDisclaimerModal() {
-    if (disclaimerModal) {
-      disclaimerModal.classList.add('active');
+  const adminAuthModal = document.getElementById('adminAuthModal');
+
+  function openAdminAuthModal() {
+    if (adminAuthModal) {
+      const pwdInput = document.getElementById('adminSecretPasswordInput');
+      const errBox = document.getElementById('adminAuthErrorMsg');
+      if (pwdInput) pwdInput.value = '';
+      if (errBox) errBox.style.display = 'none';
+      adminAuthModal.classList.add('active');
       document.body.style.overflow = 'hidden';
+      setTimeout(() => pwdInput?.focus(), 150);
     }
   }
 
@@ -165,6 +172,7 @@ const ModalModule = (() => {
     openDetailModal,
     openSubmitModal,
     openDisclaimerModal,
+    openAdminAuthModal,
     closeAllModals,
     showToast
   };

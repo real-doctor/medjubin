@@ -522,8 +522,9 @@
   color: var(--text-primary);
 }
 
-.modal-close-btn {
-  font-size: 1.4rem;
+.modal-header .modal-close-btn,
+.modal-close-icon-btn {
+  font-size: 1.25rem;
   color: var(--text-muted);
   width: 32px;
   height: 32px;
@@ -532,8 +533,13 @@
   justify-content: center;
   border-radius: var(--radius-sm);
   transition: var(--transition-fast);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
-.modal-close-btn:hover {
+.modal-header .modal-close-btn:hover,
+.modal-close-icon-btn:hover {
   background: var(--bg-card-hover);
   color: var(--text-primary);
 }
@@ -662,12 +668,29 @@
 
 /* Modal Footer */
 .modal-footer {
-  padding: 1rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   border-top: 1px solid var(--bg-card-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--bg-secondary);
+  gap: 0.75rem;
+}
+
+.modal-footer .btn {
+  font-size: 0.88rem !important;
+  line-height: 1.4 !important;
+  padding: 0.55rem 1.25rem !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 76px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 /* Toast */

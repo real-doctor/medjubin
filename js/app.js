@@ -201,6 +201,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (openDisclaimerBtn) {
       openDisclaimerBtn.addEventListener('click', () => ModalModule.openDisclaimerModal());
     }
+
+    // Secret Admin Gate Link (Footer 'All Rights Reserved.')
+    const secretAdminLink = document.getElementById('secretAdminLink');
+    if (secretAdminLink) {
+      secretAdminLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        ModalModule.openAdminAuthModal();
+      });
+    }
+
+    // Secret Admin Password Verification Form
+    const adminAuthForm = document.getElementById('adminAuthForm');
+    if (adminAuthForm) {
+      adminAuthForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pwdInput = document.getElementById('adminSecretPasswordInput');
+        const errBox = document.getElementById('adminAuthErrorMsg');
+        const enteredPassword = pwdInput ? pwdInput.value.trim() : '';
+
+        if (enteredPassword === 'votm1212!') {
+          ModalModule.showToast('관리자 인증에 성공했습니다. 스튜디오로 이동합니다.');
+          setTimeout(() => {
+            window.location.href = 'admin.html';
+          }, 400);
+        } else {
+          if (errBox) errBox.style.display = 'block';
+          if (pwdInput) {
+            pwdInput.select();
+            pwdInput.focus();
+          }
+        }
+      });
+    }
   }
 
   // 4. Filtering and Rendering
