@@ -359,7 +359,7 @@
 
       <div class="footer-bottom">
         <div>
-          © 2024-2026 의주빈 아카이브 (Public Medical Incident Media Archive). <a href="#" id="secretAdminLink" style="color: inherit; text-decoration: none; cursor: pointer; opacity: 0.85;" title="관리자 전용">All Rights Reserved.</a>
+          © 2024-2026 의주빈 아카이브 (Public Medical Incident Media Archive). <a href="javascript:void(0)" onclick="handleAdminSecretAccess(); return false;" id="secretAdminLink" style="color: inherit; text-decoration: none; cursor: pointer; opacity: 0.9;" title="관리자 인증">All Rights Reserved.</a>
         </div>
         <div style="display: flex; gap: 1rem;">
           <a href="#" onclick="ModalModule.openDisclaimerModal(); return false;"><i class="ri-file-shield-2-line"></i> 운영 원칙 및 데이터 기준</a>
@@ -548,7 +548,7 @@
         <button class="modal-close-icon-btn modal-close-btn" title="닫기"><i class="ri-close-line"></i></button>
       </div>
 
-      <form id="adminAuthForm">
+      <form id="adminAuthForm" onsubmit="handleAdminPasswordSubmit(event)">
         <div class="modal-body" style="gap: 1rem; padding: 1.25rem;">
           <p style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">
             보안 구역입니다. 관리자 비밀번호를 입력해 주세요.
@@ -577,6 +577,46 @@
     <i class="ri-checkbox-circle-fill" style="color: var(--accent-emerald);"></i>
     <span id="toastText">알림 메시지</span>
   </div>
+
+  <!-- Inline Admin Gate Helper -->
+  <script>
+    function handleAdminSecretAccess() {
+      const modal = document.getElementById('adminAuthModal');
+      const pwdInput = document.getElementById('adminSecretPasswordInput');
+      const errBox = document.getElementById('adminAuthErrorMsg');
+      if (modal) {
+        if (pwdInput) pwdInput.value = '';
+        if (errBox) errBox.style.display = 'none';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => pwdInput && pwdInput.focus(), 150);
+      } else {
+        const pwd = prompt("관리자 비밀번호를 입력하세요:");
+        if (pwd === "votm1212!") {
+          window.location.href = "admin.html";
+        } else if (pwd !== null) {
+          alert("비밀번호가 일치하지 않습니다.");
+        }
+      }
+    }
+
+    function handleAdminPasswordSubmit(e) {
+      if (e) e.preventDefault();
+      const pwdInput = document.getElementById('adminSecretPasswordInput');
+      const errBox = document.getElementById('adminAuthErrorMsg');
+      const entered = pwdInput ? pwdInput.value.trim() : '';
+
+      if (entered === 'votm1212!') {
+        window.location.href = 'admin.html';
+      } else {
+        if (errBox) errBox.style.display = 'block';
+        if (pwdInput) {
+          pwdInput.select();
+          pwdInput.focus();
+        }
+      }
+    }
+  </script>
 
   <!-- Application Scripts -->
   <script src="js/data.js"></script>
