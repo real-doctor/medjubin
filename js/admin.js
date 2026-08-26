@@ -100,6 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedGithubPat = localStorage.getItem('github_db_token') || '';
     const githubInput = document.getElementById('githubPatInput');
     if (githubInput) githubInput.value = savedGithubPat;
+
+    const savedThreshold = localStorage.getItem('report_hide_threshold') || '20';
+    const thresholdInput = document.getElementById('reportHideThresholdInput');
+    if (thresholdInput) thresholdInput.value = savedThreshold;
   }
 
   // Global Date Preset Setter (버튼 클릭 시 즉시 날짜 인풋 세팅)
@@ -269,6 +273,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const isPassword = githubInput.type === 'password';
         keyInput.type = isPassword ? 'text' : 'password';
         toggleGithubKeyVisibilityBtn.innerHTML = isPassword ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
+      });
+    }
+
+    // Save Report Threshold
+    const saveReportThresholdBtn = document.getElementById('saveReportThresholdBtn');
+    if (saveReportThresholdBtn) {
+      saveReportThresholdBtn.addEventListener('click', () => {
+        const input = document.getElementById('reportHideThresholdInput');
+        const val = input ? parseInt(input.value, 10) : 20;
+        if (isNaN(val) || val < 1) {
+          alert('1 이상의 유효한 숫자를 입력해 주세요.');
+          return;
+        }
+        localStorage.setItem('report_hide_threshold', val.toString());
+        alert(`🚨 '의사 관련 범죄 아님' 신고 누적 ${val}회 이상 시 메인 목록에서 자동 제외되도록 설정되었습니다.`);
+      });
+    }
+
+    // Reset All Reports
+    const resetAllReportsBtn = document.getElementById('resetAllReportsBtn');
+    if (resetAllReportsBtn) {
+      resetAllReportsBtn.addEventListener('click', () => {
+        if (confirm('모든 기사의 이용자 신고 누적 카운트를 0으로 초기화하시겠습니까?')) {
+          localStorage.removeItem('archive_report_counts');
+          alert('전체 기사의 이용자 신고 카운트가 초기화되었습니다.');
+          renderReviewList();
+        }
       });
     }
 
@@ -1221,6 +1252,11 @@ const REGIONS_LIST = [
         statusClass = 'status-rejected';
       }
 
+      const allReports = (() => {
+        try { return JSON.parse(localStorage.getItem('archive_report_counts') || '{}'); } catch(e) { return {}; }
+      })();
+      const reportCount = allReports[item.id] || 0;
+
       html += `
         <div class="review-item-row" id="item-row-${item.id}">
           <div class="review-status-indicator ${statusClass}">
@@ -1230,6 +1266,7 @@ const REGIONS_LIST = [
           <div class="review-content">
             <div class="review-title">
               ${isPublished ? '<span class="badge" style="background: rgba(56,189,248,0.2); color:#38bdf8; font-size:0.72rem; margin-right:0.4rem;">DB발행완료</span>' : ''}
+              ${reportCount > 0 ? `<span class="badge" style="background: rgba(248,113,113,0.2); color:#f87171; border: 1px solid rgba(248,113,113,0.4); font-size:0.72rem; margin-right:0.4rem;"><i class="ri-alarm-warning-fill"></i> 신고 ${reportCount}회</span>` : ''}
               ${item.title}
             </div>
             <div class="review-meta">

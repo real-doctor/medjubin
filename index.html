@@ -422,13 +422,18 @@
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button id="modalShareBtn" class="btn btn-secondary">
-          <i class="ri-share-forward-line"></i> 사건 링크 복사
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="modalReportNotDoctorCrimeBtn" class="btn btn-secondary" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4); font-size: 0.82rem; padding: 0.5rem 0.9rem;" title="의사 관련 사건이 아니거나 오보인 경우 신고">
+          <i class="ri-alarm-warning-line"></i> 의사 관련 범죄 아님 (<span id="modalReportCountNum">0</span>)
         </button>
-        <button class="btn btn-primary modal-close-btn">
-          확인
-        </button>
+        <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+          <button id="modalShareBtn" class="btn btn-secondary">
+            <i class="ri-share-forward-line"></i> 사건 링크 복사
+          </button>
+          <button class="btn btn-primary modal-close-btn">
+            확인
+          </button>
+        </div>
       </div>
     </div>
   </div>

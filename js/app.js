@@ -5,22 +5,45 @@
 document.addEventListener('DOMContentLoaded', () => {
   // State
   const customDataStr = localStorage.getItem('archive_published_data');
-  let activeArchiveData = [...ARCHIVE_DATA];
+  let rawArchiveData = [...ARCHIVE_DATA];
   if (customDataStr) {
     try {
       const parsed = JSON.parse(customDataStr);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        activeArchiveData = parsed;
+        rawArchiveData = parsed;
       }
     } catch (e) {
       console.warn('Custom data parse error:', e);
     }
   }
+
+  // 신고 기준치(기본 20회) 이상 누적된 기사 자동 제외
+  function getVisibleArticles(data) {
+    const threshold = parseInt(localStorage.getItem('report_hide_threshold') || '20', 10);
+    let reports = {};
+    try {
+      reports = JSON.parse(localStorage.getItem('archive_report_counts') || '{}');
+    } catch (e) {}
+
+    return data.filter(item => {
+      const count = reports[item.id] || 0;
+      return count < threshold;
+    });
+  }
+
+  let activeArchiveData = getVisibleArticles(rawArchiveData);
   let currentDataset = [...activeArchiveData];
   let currentViewMode = 'list'; // 'list' or 'dashboard'
   let searchDebounceTimer = null;
   let currentPage = 1;
   const ITEMS_PER_PAGE = 24;
+
+  // Global Feed Refresher (신고 등 상태 변경 시 호출)
+  window.refreshArchiveFeed = () => {
+    activeArchiveData = getVisibleArticles(rawArchiveData);
+    renderKPIStats();
+    applyFiltersAndRender();
+  };
 
   // Initialize
   initTheme();

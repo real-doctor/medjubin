@@ -202,6 +202,33 @@
           <div id="gitSyncStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem;"></div>
         </div>
 
+        <!-- 3. Report Threshold & User Governance Settings (신고 자동 숨김 기준치 설정) -->
+        <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <i class="ri-alarm-warning-fill" style="color: #f87171; font-size: 1.2rem;"></i>
+              <div>
+                <strong style="font-size: 0.92rem; color: #fca5a5;">'의사 관련 범죄 아님' 이용자 신고 자동 숨김 기준치 설정</strong>
+                <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.1rem;">
+                  이용자가 기사 상세창에서 '의사 관련 범죄 아님'을 누른 횟수가 설정값에 도달하면 메인 목록에서 즉시 자동 제외됩니다.
+                </p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 700;">자동 제외 기준 누적 횟수:</label>
+              <input type="number" id="reportHideThresholdInput" class="api-key-input" style="width: 80px; text-align: center; font-weight: 700; font-size: 0.9rem; padding: 0.45rem;" min="1" max="1000" value="20">
+              <span style="font-size: 0.8rem; color: var(--text-muted);">회</span>
+              <button id="saveReportThresholdBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+                <i class="ri-save-line"></i> 기준치 저장
+              </button>
+              <button id="resetAllReportsBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="모든 기사의 신고 누적 카운트 초기화">
+                <i class="ri-refresh-line"></i> 전체 신고 리셋
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- API Key Input & Model Setup Row -->
         <div id="geminiApiRow" class="ai-api-row" style="margin-top: 1rem;">
           <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">

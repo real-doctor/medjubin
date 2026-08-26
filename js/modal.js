@@ -113,6 +113,62 @@ const ModalModule = (() => {
       tagsContainer.innerHTML = tagsHtml;
     }
 
+    // Report 'Not Doctor Crime' Button
+    const reportBtn = document.getElementById('modalReportNotDoctorCrimeBtn');
+    const reportCountSpan = document.getElementById('modalReportCountNum');
+    
+    const getReportCounts = () => {
+      try {
+        return JSON.parse(localStorage.getItem('archive_report_counts') || '{}');
+      } catch (e) {
+        return {};
+      }
+    };
+    
+    const getHideThreshold = () => {
+      return parseInt(localStorage.getItem('report_hide_threshold') || '20', 10);
+    };
+
+    const currentReports = getReportCounts();
+    const currentCount = currentReports[item.id] || 0;
+    const threshold = getHideThreshold();
+
+    if (reportCountSpan) {
+      reportCountSpan.textContent = currentCount;
+    }
+
+    if (reportBtn) {
+      reportBtn.onclick = () => {
+        const hasVotedKey = 'archive_has_reported_' + item.id;
+        if (localStorage.getItem(hasVotedKey)) {
+          showToast('이미 이 기사에 대해 \'의사 관련 범죄 아님\' 신고를 제출하셨습니다.');
+          return;
+        }
+
+        if (confirm(`이 사건을 '의사 관련 범죄 아님 (오보/비의사 사건)'으로 신고하시겠습니까?\n\n* 누적 ${threshold}회 이상 신고 시 메인 목록에서 자동으로 제외됩니다.\n* 현재 누적 신고: ${currentCount}회`)) {
+          const reports = getReportCounts();
+          const newCount = (reports[item.id] || 0) + 1;
+          reports[item.id] = newCount;
+          localStorage.setItem('archive_report_counts', JSON.stringify(reports));
+          localStorage.setItem(hasVotedKey, 'true');
+
+          if (reportCountSpan) reportCountSpan.textContent = newCount;
+
+          if (newCount >= threshold) {
+            showToast(`신고 접수 완료! 누적 신고가 기준치(${threshold}회)에 도달하여 메인 목록에서 자동 제외됩니다.`);
+            setTimeout(() => {
+              closeAllModals();
+              if (window.refreshArchiveFeed) {
+                window.refreshArchiveFeed();
+              }
+            }, 1000);
+          } else {
+            showToast(`신고가 정상 접수되었습니다. (현재 누적 신고: ${newCount} / ${threshold}회)`);
+          }
+        }
+      };
+    }
+
     // Share Button
     const shareBtn = document.getElementById('modalShareBtn');
     if (shareBtn) {
