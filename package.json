@@ -1,0 +1,13 @@
+{
+  "name": "medjubin",
+  "version": "1.0.0",
+  "description": "의주빈 아카이브 - 대한민국 의사 범죄 및 의료사고 공공보도 데이터베이스",
+  "scripts": {
+    "dev": "npx -y http-server . -p 8080 -c-1",
+    "deploy": "git add . && git commit -m \"update: automated sync\" && git push origin main",
+    "collect": "node scripts/heavy_collector.js"
+  },
+  "keywords": ["medical", "archive", "data-journalism"],
+  "author": "medjubin",
+  "license": "MIT"
+}
