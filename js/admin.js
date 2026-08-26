@@ -1166,6 +1166,7 @@ const REGIONS_LIST = [
     let total = rawQueue.length;
     let published = 0;
     let reported = 0;
+    let submitted = 0;
     let approved = 0;
     let reviewCount = 0;
     let rejected = 0;
@@ -1178,6 +1179,7 @@ const REGIONS_LIST = [
     rawQueue.forEach(item => {
       const repCount = allReports[item.id] || 0;
       if (repCount >= 10) reported++;
+      if (item.isUserSubmitted || item.category === 'user_submitted') submitted++;
 
       if (item.isPublished || item.aiStatus === 'published') published++;
       else if (item.aiStatus === 'approved') approved++;
@@ -1189,6 +1191,7 @@ const REGIONS_LIST = [
     const badgeAll = document.getElementById('badgeCountAll');
     const badgePub = document.getElementById('badgeCountPublished');
     const badgeRep = document.getElementById('badgeCountReported');
+    const badgeSub = document.getElementById('badgeCountSubmitted');
     const badgeApp = document.getElementById('badgeCountApproved');
     const badgeRev = document.getElementById('badgeCountReview');
     const badgeRej = document.getElementById('badgeCountRejected');
@@ -1197,6 +1200,7 @@ const REGIONS_LIST = [
     if (badgeAll) badgeAll.textContent = total;
     if (badgePub) badgePub.textContent = published;
     if (badgeRep) badgeRep.textContent = reported;
+    if (badgeSub) badgeSub.textContent = submitted;
     if (badgeApp) badgeApp.textContent = approved;
     if (badgeRev) badgeRev.textContent = reviewCount;
     if (badgeRej) badgeRej.textContent = rejected;
@@ -1204,7 +1208,7 @@ const REGIONS_LIST = [
 
     const statSummary = document.getElementById('aiStatsSummary');
     if (statSummary) {
-      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (검토완료: <span style="color:#38bdf8;">${published}건</span>, <span style="color:#f87171;">다수신고(10+): ${reported}건</span>, 승인대기: <span style="color:#10b981;">${approved}건</span>, AI검토: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
+      statSummary.innerHTML = `대기열 총 <strong>${total}건</strong> (검토완료: <span style="color:#38bdf8;">${published}건</span>, <span style="color:#f87171;">다수신고(10+): ${reported}건</span>, <span style="color:#c084fc;">시민제보: ${submitted}건</span>, 승인대기: <span style="color:#10b981;">${approved}건</span>, AI검토: <span style="color:#f59e0b;">${reviewCount}건</span>, 배제: <span style="color:#ef4444;">${rejected}건</span>, 미분석: ${pending}건)`;
     }
   }
 
@@ -1218,7 +1222,9 @@ const REGIONS_LIST = [
     })();
 
     let filtered = rawQueue;
-    if (currentTab === 'reported') {
+    if (currentTab === 'submitted') {
+      filtered = rawQueue.filter(d => d.isUserSubmitted || d.category === 'user_submitted');
+    } else if (currentTab === 'reported') {
       filtered = rawQueue.filter(d => (allReports[d.id] || 0) >= 10);
       filtered.sort((a, b) => (allReports[b.id] || 0) - (allReports[a.id] || 0));
     } else if (currentTab === 'published') {
@@ -1237,7 +1243,7 @@ const REGIONS_LIST = [
       container.innerHTML = `
         <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
           <i class="ri-inbox-line" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;"></i>
-          ${currentTab === 'reported' ? '10회 이상 신고된 기사가 없습니다. (정상 운영 중)' : '해당 탭에 표시할 기사가 없습니다.'}
+          ${currentTab === 'submitted' ? '접수된 시민 제보 기사가 없습니다.' : currentTab === 'reported' ? '10회 이상 신고된 기사가 없습니다. (정상 운영 중)' : '해당 탭에 표시할 기사가 없습니다.'}
         </div>
       `;
       return;
@@ -1252,6 +1258,7 @@ const REGIONS_LIST = [
       const isApproved = item.aiStatus === 'approved' && !isPublished;
       const isReview = item.aiStatus === 'review' && !isPublished;
       const isRejected = item.aiStatus === 'rejected' && !isPublished;
+      const isSubmitted = item.isUserSubmitted || item.category === 'user_submitted';
 
       let statusIcon = '<i class="ri-time-line"></i>';
       let statusClass = 'status-pending';
@@ -1267,6 +1274,9 @@ const REGIONS_LIST = [
       } else if (isRejected) {
         statusIcon = '<i class="ri-close-circle-fill"></i>';
         statusClass = 'status-rejected';
+      } else if (isSubmitted) {
+        statusIcon = '<i class="ri-mail-send-fill" style="color: #c084fc;"></i>';
+        statusClass = 'status-review';
       }
 
       const reportCount = allReports[item.id] || 0;

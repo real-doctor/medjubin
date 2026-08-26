@@ -51,9 +51,19 @@ const FilterModule = (() => {
         }
       }
 
-      // 2. Category
-      if (currentFilters.category && currentFilters.category !== 'all' && item.category !== currentFilters.category) {
-        return false;
+      // 2. Category Handling (전체사건에서는 제보기사 제외, 제보기사 탭에서만 노출)
+      if (!currentFilters.category || currentFilters.category === 'all') {
+        if (item.isUserSubmitted || item.category === 'user_submitted') {
+          return false;
+        }
+      } else if (currentFilters.category === 'user_submitted') {
+        if (!item.isUserSubmitted && item.category !== 'user_submitted') {
+          return false;
+        }
+      } else {
+        if (item.category !== currentFilters.category || item.isUserSubmitted) {
+          return false;
+        }
       }
 
       // 3. Region

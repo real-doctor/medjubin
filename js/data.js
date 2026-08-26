@@ -55354,7 +55354,8 @@ const CATEGORY_META = {
   proxy_surgery: { label: "대리수술 / 무면허", color: "#f59e0b", icon: "ri-knife-line" },
   malpractice_hazard: { label: "의료사고 / 도덕적해이", color: "#ef4444", icon: "ri-error-warning-fill" },
   fraud_rebate: { label: "보험사기 / 리베이트", color: "#06b6d4", icon: "ri-money-dollar-circle-fill" },
-  other_crimes: { label: "기타 강력 / 형사범죄", color: "#64748b", icon: "ri-scales-3-fill" }
+  other_crimes: { label: "기타 강력 / 형사범죄", color: "#64748b", icon: "ri-scales-3-fill" },
+  user_submitted: { label: "제보 기사", color: "#a855f7", icon: "ri-mail-send-fill" }
 };
 
 const REGIONS_LIST = [

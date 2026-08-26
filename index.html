@@ -216,6 +216,9 @@
         <button class="cat-pill-btn pill-other" data-category="other_crimes">
           <i class="ri-scales-3-fill"></i> 기타 형사범죄
         </button>
+        <button class="cat-pill-btn pill-submitted" data-category="user_submitted" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;">
+          <i class="ri-mail-send-fill"></i> 제보 기사
+        </button>
       </div>
     </section>
 
@@ -454,19 +457,19 @@
 
           <div class="form-group">
             <label class="form-label">보도 기사 URL <span class="required">*</span></label>
-            <input type="url" class="form-input" required placeholder="https://news.naver.com/... 또는 https://news.v.daum.net/...">
+            <input type="url" id="submitNewsUrl" class="form-input" required placeholder="https://news.naver.com/... 또는 https://news.v.daum.net/...">
             <span class="form-hint">정식 등록된 언론사 기사 링크만 접수 가능합니다.</span>
           </div>
 
           <div class="form-group">
             <label class="form-label">보도 언론사명 및 기사 제목 <span class="required">*</span></label>
-            <input type="text" class="form-input" required placeholder="예: [KBS] 수면마취 중 환자 불법촬영 성형외과 원장 구속">
+            <input type="text" id="submitNewsTitle" class="form-input" required placeholder="예: [KBS] 수면마취 중 환자 불법촬영 성형외과 원장 구속">
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
               <label class="form-label">사건 유형 <span class="required">*</span></label>
-              <select class="form-select" required>
+              <select id="submitNewsCategory" class="form-select" required>
                 <option value="">유형 선택</option>
                 <option value="sex_crime">성범죄 / 불법촬영</option>
                 <option value="narcotics">마약류 / 프로포폴</option>
@@ -479,7 +482,7 @@
 
             <div class="form-group">
               <label class="form-label">발생 지역 <span class="required">*</span></label>
-              <select class="form-select" required>
+              <select id="submitNewsRegion" class="form-select" required>
                 <option value="">지역 선택</option>
                 <option value="서울">서울</option>
                 <option value="경기">경기</option>
@@ -488,6 +491,16 @@
                 <option value="대구">대구</option>
                 <option value="대전">대전</option>
                 <option value="광주">광주</option>
+                <option value="울산">울산</option>
+                <option value="세종">세종</option>
+                <option value="강원">강원</option>
+                <option value="충북">충북</option>
+                <option value="충남">충남</option>
+                <option value="전북">전북</option>
+                <option value="전남">전남</option>
+                <option value="경북">경북</option>
+                <option value="경남">경남</option>
+                <option value="제주">제주</option>
                 <option value="기타">기타 지역</option>
               </select>
             </div>
@@ -495,7 +508,7 @@
 
           <div class="form-group">
             <label class="form-label">사건 개요 및 추가 정보 (선택)</label>
-            <textarea class="form-textarea" placeholder="보도 기사의 핵심 내용이나 판결 정보가 있다면 기재해 주세요."></textarea>
+            <textarea id="submitNewsDesc" class="form-textarea" placeholder="보도 기사의 핵심 내용이나 판결 정보가 있다면 기재해 주세요."></textarea>
           </div>
         </div>
 

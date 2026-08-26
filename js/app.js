@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Master Data Loader (ARCHIVE_DATA 242건 기반 안전 로딩 및 발행 데이터 병합)
+  // Master Data Loader (ARCHIVE_DATA 기반 안전 로딩, 발행 데이터 및 시민 제보 기사 병합)
   function loadMasterData() {
     let baseData = (typeof ARCHIVE_DATA !== 'undefined' && Array.isArray(ARCHIVE_DATA)) ? [...ARCHIVE_DATA] : [];
     const customDataStr = localStorage.getItem('archive_published_data');
@@ -19,6 +19,26 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('Custom data parse error:', e);
       }
     }
+
+    // 시민 제보 기사 로드
+    const userSubmissionsStr = localStorage.getItem('archive_user_submissions');
+    if (userSubmissionsStr) {
+      try {
+        const userSubs = JSON.parse(userSubmissionsStr);
+        if (Array.isArray(userSubs) && userSubs.length > 0) {
+          const idSet = new Set(baseData.map(d => d.id));
+          userSubs.forEach(item => {
+            if (item && item.id && !idSet.has(item.id)) {
+              baseData.unshift(item);
+              idSet.add(item.id);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('User submissions parse error:', e);
+      }
+    }
+
     return baseData;
   }
 
@@ -100,16 +120,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 2. KPI Summary Statistics
+  // 2. KPI Summary Statistics (정식 검증 보도 기사만 집계, 제보 기사는 제외)
   function renderKPIStats() {
-    const totalCount = activeArchiveData.length;
+    const verifiedData = activeArchiveData.filter(item => !item.isUserSubmitted && item.category !== 'user_submitted');
+    const totalCount = verifiedData.length;
     let sexCount = 0;
     let narcoticsCount = 0;
     let proxyCount = 0;
     let malpracticeCount = 0;
     let fraudCount = 0;
 
-    activeArchiveData.forEach(item => {
+    verifiedData.forEach(item => {
       if (item.category === 'sex_crime') sexCount++;
       else if (item.category === 'narcotics') narcoticsCount++;
       else if (item.category === 'proxy_surgery') proxyCount++;
