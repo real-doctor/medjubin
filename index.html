@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>의주빈 아카이브 | 대한민국 의사 범죄 및 의료사고 공공보도 데이터베이스</title>
+  <meta name="description" content="네이버, 다음 등 주요 언론에 정식 보도된 대한민국 의사들의 성범죄, 마약·프로포폴 불법투약, 대리수술, 의료사고 및 도덕적 해이 사건을 지역별, 범죄별, 날짜별로 정리한 공공 데이터 아카이브">
+  <meta name="keywords" content="의사 범죄, 의료사고, 프로포폴, 대리수술, 불법촬영, 성범죄 의사, 의사 면허취소, 공공보도 아카이브">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z'/></svg>">
+
+  <!-- Remix Icon CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <!-- Web Fonts (Pretendard & JetBrains Mono) -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Site Header -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand-wrapper">
+          <div class="brand-logo">
+            <i class="ri-shield-cross-line"></i>
+          </div>
+          <div class="brand-info">
+            <h1>
+              의주빈 아카이브
+              <span class="brand-badge">PUBLIC MEDIA ARCHIVE</span>
+            </h1>
+            <p class="brand-sub">대한민국 의사 범죄·의료사고 공공보도 데이터베이스</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- View Switcher -->
+          <div class="view-tabs">
+            <button id="viewListBtn" class="view-tab-btn active" title="사건 목록 보기">
+              <i class="ri-list-check-2"></i> 아카이브 피드
+            </button>
+            <button id="viewDashboardBtn" class="view-tab-btn" title="통계 대시보드 보기">
+              <i class="ri-pie-chart-2-fill"></i> 통계 대시보드
+            </button>
+          </div>
+
+          <!-- Submit News Button -->
+          <button id="openSubmitModalBtn" class="btn btn-primary" title="새로운 언론 보도 제보하기">
+            <i class="ri-newspaper-line"></i> 기사 제보
+          </button>
+
+          <!-- Disclaimer Modal Button -->
+          <button id="openDisclaimerBtn" class="btn btn-secondary" title="데이터 관리 기준 및 법적 안내">
+            <i class="ri-information-line"></i> 안내
+          </button>
+
+          <!-- Admin Studio Link -->
+          <a href="admin.html" class="btn btn-secondary" title="AI 대량 팩트체크 및 관리자 스튜디오">
+            <i class="ri-robot-2-fill" style="color: #a78bfa;"></i> AI 스튜디오
+          </a>
+
+          <!-- Dark/Light Theme Toggle -->
+          <button id="themeToggleBtn" class="btn-icon-only" title="테마 변경">
+            <i class="ri-sun-fill"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top KPI Stats Banner -->
+    <section class="stats-banner">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ri-archive-stack-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">총 기록 보도</div>
+          <div class="stat-value" id="statTotalCount">0</div>
+          <div class="stat-sub">언론 팩트체크 완료</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-sex">
+        <div class="stat-icon"><i class="ri-shield-cross-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">성범죄 / 불법촬영</div>
+          <div class="stat-value" id="statSexCount">0</div>
+          <div class="stat-sub">진료실·마취 중 범죄</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-narcotics">
+        <div class="stat-icon"><i class="ri-capsule-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">마약류 / 프로포폴</div>
+          <div class="stat-value" id="statNarcoticsCount">0</div>
+          <div class="stat-sub">불법투약 및 처방</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-proxy">
+        <div class="stat-icon"><i class="ri-knife-line"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">대리 / 유령수술</div>
+          <div class="stat-value" id="statProxyCount">0</div>
+          <div class="stat-sub">영업사원·조무사 집도</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-malpractice">
+        <div class="stat-icon"><i class="ri-error-warning-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">의료사고 / 은폐</div>
+          <div class="stat-value" id="statMalpracticeCount">0</div>
+          <div class="stat-sub">음주진료·차트조작</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-fraud">
+        <div class="stat-icon"><i class="ri-money-dollar-circle-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">보험사기 / 리베이트</div>
+          <div class="stat-value" id="statFraudCount">0</div>
+          <div class="stat-sub">허위진단 및 결탁</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter & Search Section -->
+    <section class="filter-section">
+      <!-- Search & Main Selects -->
+      <div class="search-bar-row">
+        <div class="search-input-wrapper">
+          <i class="ri-search-2-line"></i>
+          <input type="text" id="searchInput" class="search-input" placeholder="사건명, 병의원 과목, 처벌 내용, 키워드 검색 (예: 프로포폴, 대리수술, 강남성형외과)">
+        </div>
+
+        <div class="filter-selects-row">
+          <select id="regionSelect" class="custom-select" title="지역 선택">
+            <option value="all">전국 (전체 지역)</option>
+            <option value="서울">서울</option>
+            <option value="경기">경기</option>
+            <option value="인천">인천</option>
+            <option value="부산">부산</option>
+            <option value="대구">대구</option>
+            <option value="대전">대전</option>
+            <option value="광주">광주</option>
+            <option value="울산">울산</option>
+            <option value="세종">세종</option>
+            <option value="강원">강원</option>
+            <option value="충북">충북</option>
+            <option value="충남">충남</option>
+            <option value="전북">전북</option>
+            <option value="전남">전남</option>
+            <option value="경북">경북</option>
+            <option value="경남">경남</option>
+            <option value="제주">제주</option>
+          </select>
+
+          <select id="yearSelect" class="custom-select" title="연도 선택">
+            <option value="all">전체 연도</option>
+            <option value="2024">2024년</option>
+            <option value="2023">2023년</option>
+            <option value="2022">2022년</option>
+            <option value="2021">2021년</option>
+            <option value="2020">2020년</option>
+          </select>
+
+          <select id="licenseSelect" class="custom-select" title="면허/처분 상태">
+            <option value="all">전체 처분 상태</option>
+            <option value="revoked">면허 취소 / 박탈</option>
+            <option value="suspended">면허 정지 / 자격정지</option>
+            <option value="ongoing">재판 / 수사 진행 중</option>
+            <option value="none">면허 유지 / 벌금형</option>
+          </select>
+
+          <select id="sortSelect" class="custom-select" title="정렬 기준">
+            <option value="latest">최신 보도순</option>
+            <option value="oldest">과거 보도순</option>
+          </select>
+
+          <button id="resetFilterBtn" class="btn btn-secondary" title="모든 필터 초기화">
+            <i class="ri-refresh-line"></i> 초기화
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="category-pills-row">
+        <button class="cat-pill-btn active" data-category="all">
+          <i class="ri-apps-fill"></i> 전체 사건
+        </button>
+        <button class="cat-pill-btn" data-category="sex_crime">
+          <i class="ri-shield-cross-fill"></i> 성범죄 / 불법촬영
+        </button>
+        <button class="cat-pill-btn pill-narcotics" data-category="narcotics">
+          <i class="ri-capsule-fill"></i> 마약류 / 프로포폴
+        </button>
+        <button class="cat-pill-btn pill-proxy" data-category="proxy_surgery">
+          <i class="ri-knife-line"></i> 대리수술 / 무면허
+        </button>
+        <button class="cat-pill-btn pill-malpractice" data-category="malpractice_hazard">
+          <i class="ri-error-warning-fill"></i> 의료사고 / 도덕적해이
+        </button>
+        <button class="cat-pill-btn pill-fraud" data-category="fraud_rebate">
+          <i class="ri-money-dollar-circle-fill"></i> 보험사기 / 리베이트
+        </button>
+        <button class="cat-pill-btn pill-other" data-category="other_crimes">
+          <i class="ri-scales-3-fill"></i> 기타 형사범죄
+        </button>
+      </div>
+    </section>
+
+    <!-- Active Filter Status & Counter Bar -->
+    <div class="filter-status-bar">
+      <div id="filteredCountDisplay" style="font-weight: 700;">
+        검색 결과: 총 0건의 보도 기록
+      </div>
+      <div id="activeFilterTags" class="active-filter-tags">
+        <!-- Dynamic tags injected here -->
+      </div>
+    </div>
+
+    <!-- MAIN VIEW 1: Archive List Feed & Interactive Korea Map -->
+    <main id="listViewContainer" class="main-content-layout">
+      <!-- Left: Interactive Korea SVG Map Sidebar -->
+      <aside class="map-card-wrapper">
+        <div class="map-header">
+          <div class="map-title">
+            <i class="ri-map-2-line" style="color: var(--accent-primary);"></i> 전국 지역별 사건 발생도
+          </div>
+          <button id="mapResetBtn" class="map-reset-btn" title="전체 지역 선택">
+            전체 해제
+          </button>
+        </div>
+
+        <!-- SVG Map Container -->
+        <div id="koreaMapContainer" class="korea-map-svg-container">
+          <!-- Dynamic SVG injected via map.js -->
+        </div>
+
+        <!-- Quick Region Selector Chips -->
+        <div id="regionChipsGrid" class="region-chips-grid">
+          <!-- Injected via map.js -->
+        </div>
+      </aside>
+
+      <!-- Right: Incident Cards Feed Column & Pagination -->
+      <div class="feed-column">
+        <section id="incidentCardsGrid" class="incident-cards-grid">
+          <!-- Rendered dynamically by app.js -->
+        </section>
+        <div id="paginationContainer" class="pagination-wrapper">
+          <!-- Pagination buttons rendered by app.js -->
+        </div>
+      </div>
+    </main>
+
+    <!-- MAIN VIEW 2: Visual Statistics & Analytics Dashboard (Hidden by default) -->
+    <section id="dashboardViewContainer" class="dashboard-view-container" style="display: none;">
+      <div class="charts-grid">
+        <!-- Chart 1: Category Distribution -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="ri-pie-chart-fill" style="color: var(--accent-primary);"></i> 사건 유형별 보도 비중
+            </div>
+            <div class="chart-sub">카테고리별 건수 및 백분율</div>
+          </div>
+          <div class="chart-canvas-wrapper">
+            <canvas id="categoryChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Yearly Timeline Trend -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="ri-bar-chart-box-fill" style="color: var(--accent-secondary);"></i> 연도별 주요 사건 보도 추이
+            </div>
+            <div class="chart-sub">연도별 언론 적발 및 판결 건수</div>
+          </div>
+          <div class="chart-canvas-wrapper">
+            <canvas id="yearlyChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: Regional Frequency -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="ri-map-pin-user-fill" style="color: var(--accent-danger);"></i> 주요 지역별 보도 사건 순위 (TOP 6)
+            </div>
+            <div class="chart-sub">지역별 사건 발생 빈도 순위</div>
+          </div>
+          <div class="chart-canvas-wrapper">
+            <canvas id="regionChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Disposition & License Status -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="ri-scales-fill" style="color: var(--accent-amber);"></i> 면허 처분 및 법적 판결 현황
+            </div>
+            <div class="chart-sub">면허 취소 vs 정지 vs 재판 중 비율</div>
+          </div>
+          <div class="chart-canvas-wrapper">
+            <canvas id="dispositionChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Insights Summary Row -->
+      <div class="insights-row">
+        <div class="insight-card">
+          <i class="ri-lightbulb-flash-fill insight-icon"></i>
+          <div class="insight-content">
+            <h4>수면마취 및 진료실 내 성범죄 취약성</h4>
+            <p>환자가 무방비 상태인 수면마취 중 불법촬영 및 성추행 사건이 지속적으로 발생하여 수술실 CCTV 의무화 및 엄격한 면허 취소 법제화의 핵심 근거가 되고 있습니다.</p>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <i class="ri-alarm-warning-fill insight-icon" style="color: var(--cat-narcotics);"></i>
+          <div class="insight-content">
+            <h4>프로포폴·펜타닐·에토미데이트 불법 유통</h4>
+            <p>비급여 마약성 진통제 및 마취제의 무차별 불법 처방과 은폐 사망사고가 빈발하며 마약류통합관리시스템을 통한 단속이 대폭 강화되고 있습니다.</p>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <i class="ri-hospital-fill insight-icon" style="color: var(--cat-proxy);"></i>
+          <div class="insight-content">
+            <h4>대리수술(유령수술)의 구조적 문제</h4>
+            <p>의료기기 영업사원 및 간호조무사에게 집도를 맡기는 불법 대리수술로 인해 환자 부작용과 사망 사고가 발생하며 실형 선고 및 면허 취소 판례가 확립되고 있습니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Site Footer -->
+    <footer class="site-footer">
+      <div class="footer-disclaimer-box">
+        <p><strong>[공공보도 아카이브 안내 및 면책조항]</strong></p>
+        <p style="margin-top: 0.35rem; line-height: 1.6;">
+          본 아카이브는 네이버, 다음 등 주요 포털 및 공중파, 종합일간지 등 등록 언론사에 이미 보도된 사실만을 바탕으로 공공의 알 권리와 의료 안전 증진을 위해 체계적으로 정리·제공하는 탐사 데이터베이스입니다. 언론 보도 표준 준칙에 따라 개인정보를 보호하며, 판결 결과가 변경되거나 정정보도가 이루어진 경우 제보 창구를 통해 데이터 수정 및 보정을 상시 접수합니다.
+        </p>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          © 2024-2026 의주빈 아카이브 (Public Medical Incident Media Archive). All Rights Reserved.
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <a href="#" onclick="ModalModule.openDisclaimerModal(); return false;"><i class="ri-file-shield-2-line"></i> 운영 원칙 및 데이터 기준</a>
+          <a href="#" onclick="ModalModule.openSubmitModal(); return false;"><i class="ri-mail-send-line"></i> 기사 제보 및 정정 요청</a>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. Case Detail Modal -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div>
+          <div id="modalBadges" class="badge-group" style="margin-bottom: 0.5rem;"></div>
+          <h2 id="modalTitle" class="modal-title">사건 제목</h2>
+          <div id="modalDate" class="card-date" style="margin-top: 0.3rem;"></div>
+        </div>
+        <button class="modal-close-btn" title="닫기"><i class="ri-close-line"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Summary Box -->
+        <div>
+          <div class="modal-section-title"><i class="ri-article-line"></i> 언론 보도 핵심 개요</div>
+          <div id="modalSummary" class="modal-case-summary"></div>
+        </div>
+
+        <!-- Legal Status & License Info -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div style="background: var(--bg-input); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--bg-card-border);">
+            <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">형사 판결 / 처벌 결과</div>
+            <div id="modalLegalStatus" style="font-size: 0.92rem; font-weight: 700; color: #f87171; margin-top: 0.25rem;"></div>
+          </div>
+          <div style="background: var(--bg-input); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--bg-card-border);">
+            <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">의사 면허 처분 상태</div>
+            <div id="modalLicenseStatus" style="font-size: 0.92rem; font-weight: 700; color: var(--accent-secondary); margin-top: 0.25rem;"></div>
+          </div>
+        </div>
+
+        <!-- Chronological Timeline -->
+        <div>
+          <div class="modal-section-title"><i class="ri-history-line"></i> 사건 진행 및 판결 경과 (타임라인)</div>
+          <div id="modalTimeline"></div>
+        </div>
+
+        <!-- Verified News Citations -->
+        <div>
+          <div class="modal-section-title"><i class="ri-newspaper-line"></i> 정식 언론 보도 출처 (기사 원문 링크)</div>
+          <div id="modalSources"></div>
+        </div>
+
+        <!-- Tags -->
+        <div>
+          <div class="modal-section-title"><i class="ri-hashtag"></i> 관련 키워드 태그</div>
+          <div id="modalTags" class="active-filter-tags"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="modalShareBtn" class="btn btn-secondary">
+          <i class="ri-share-forward-line"></i> 사건 링크 복사
+        </button>
+        <button class="btn btn-primary modal-close-btn">
+          확인
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. News Article Submission Modal -->
+  <div id="submitModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="ri-newspaper-line" style="color: var(--accent-primary);"></i> 보도 기사 제보 및 정정 신청</h2>
+        <button class="modal-close-btn" title="닫기"><i class="ri-close-line"></i></button>
+      </div>
+
+      <form id="newsSubmitForm">
+        <div class="modal-body">
+          <p style="font-size: 0.84rem; color: var(--text-secondary);">
+            언론사(네이버/다음 뉴스 등)에 보도된 의사 성범죄, 마약, 대리수술, 의료사고 기사를 제보해 주시면 팩트체크 후 데이터베이스에 등재됩니다.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">보도 기사 URL <span class="required">*</span></label>
+            <input type="url" class="form-input" required placeholder="https://news.naver.com/... 또는 https://news.v.daum.net/...">
+            <span class="form-hint">정식 등록된 언론사 기사 링크만 접수 가능합니다.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">보도 언론사명 및 기사 제목 <span class="required">*</span></label>
+            <input type="text" class="form-input" required placeholder="예: [KBS] 수면마취 중 환자 불법촬영 성형외과 원장 구속">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-group">
+              <label class="form-label">사건 유형 <span class="required">*</span></label>
+              <select class="form-select" required>
+                <option value="">유형 선택</option>
+                <option value="sex_crime">성범죄 / 불법촬영</option>
+                <option value="narcotics">마약류 / 프로포폴</option>
+                <option value="proxy_surgery">대리수술 / 무면허</option>
+                <option value="malpractice_hazard">의료사고 / 도덕적해이</option>
+                <option value="fraud_rebate">보험사기 / 리베이트</option>
+                <option value="other_crimes">기타 형사범죄</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">발생 지역 <span class="required">*</span></label>
+              <select class="form-select" required>
+                <option value="">지역 선택</option>
+                <option value="서울">서울</option>
+                <option value="경기">경기</option>
+                <option value="인천">인천</option>
+                <option value="부산">부산</option>
+                <option value="대구">대구</option>
+                <option value="대전">대전</option>
+                <option value="광주">광주</option>
+                <option value="기타">기타 지역</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">사건 개요 및 추가 정보 (선택)</label>
+            <textarea class="form-textarea" placeholder="보도 기사의 핵심 내용이나 판결 정보가 있다면 기재해 주세요."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close-btn">취소</button>
+          <button type="submit" class="btn btn-primary"><i class="ri-send-plane-fill"></i> 제보 접수하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Legal Disclaimer & Policy Modal -->
+  <div id="disclaimerModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="ri-file-shield-2-fill" style="color: var(--accent-secondary);"></i> 운영 원칙 및 데이터 관리 기준</h2>
+        <button class="modal-close-btn" title="닫기"><i class="ri-close-line"></i></button>
+      </div>
+
+      <div class="modal-body" style="font-size: 0.88rem; line-height: 1.7; color: var(--text-primary);">
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--accent-secondary);">1. 데이터 수집 출처의 신뢰성</h4>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+          본 사이트에 수록된 모든 사건·사고 정보는 포털 사이트(네이버 뉴스, 다음 뉴스) 및 공중파(KBS, MBC, SBS), 보도전문채널(YTN, JTBC), 주요 종합일간지 등 공인된 언론 기관의 정식 보도 기사를 100% 근거로 작성됩니다.
+        </p>
+
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--accent-secondary);">2. 개인정보 보호 및 언론 보도 준칙 준수</h4>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+          본 아카이브는 사적 제재나 개인 신상 털기를 목적으로 하지 않으며, 언론 기사 원문의 표기 방식(A원장, B의사 등 익명 표기)을 엄격히 준수합니다.
+        </p>
+
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--accent-secondary);">3. 무죄 추정 및 판결 변동 정정 원칙</h4>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+          수사 또는 1심 진행 중인 사건의 경우 향후 무죄 확정 판결이나 혐의 없음 처분이 내려질 시, 제보 및 모니터링을 통해 즉각 해당 기록을 수정 또는 삭제 처리합니다.
+        </p>
+
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--accent-secondary);">4. 공공의 이익 증진</h4>
+        <p style="color: var(--text-secondary);">
+          의료 환경에서의 범죄 예방, 환자 안전권 보장, 수술실 CCTV 제도 및 의료인 면허 규제 등에 대한 공론화와 공익적 데이터 저널리즘을 목표로 합니다.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary modal-close-btn" style="margin-left: auto;">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Message -->
+  <div id="toastMsg" class="toast-msg">
+    <i class="ri-checkbox-circle-fill" style="color: var(--accent-emerald);"></i>
+    <span id="toastText">알림 메시지</span>
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/filter.js"></script>
+  <script src="js/modal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

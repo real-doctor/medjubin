@@ -1,0 +1,177 @@
+/* =========================================================
+   대한민국 17개 시도 인터랙티브 지도 스타일시트 (map.css)
+   ========================================================= */
+
+.map-card-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 5rem;
+}
+
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.map-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.map-reset-btn {
+  font-size: 0.75rem;
+  color: var(--accent-secondary);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.1);
+  transition: var(--transition-fast);
+}
+.map-reset-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Korea SVG Container */
+.korea-map-svg-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 125%; /* Aspect Ratio 4:5 */
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-card-border);
+  overflow: hidden;
+}
+
+.korea-map-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Map Region Paths */
+.map-region-path {
+  fill: #1e293b;
+  stroke: #334155;
+  stroke-width: 1.2;
+  transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
+  cursor: pointer;
+}
+
+[data-theme="light"] .map-region-path {
+  fill: #e2e8f0;
+  stroke: #cbd5e1;
+}
+
+.map-region-path:hover {
+  fill: rgba(244, 63, 94, 0.45);
+  stroke: #f43f5e;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.4));
+}
+
+.map-region-path.active {
+  fill: #f43f5e !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 12px rgba(244, 63, 94, 0.7));
+}
+
+/* Map Labels & Counts */
+.map-label-text {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+.map-count-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  fill: #ffffff;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* Region Quick Selector Grid */
+.region-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.region-chip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+
+.region-chip-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.region-chip-btn.active {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.region-chip-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.region-chip-btn.active .region-chip-count {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+/* Map Tooltip */
+.map-floating-tooltip {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.95);
+  color: #fff;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  white-space: nowrap;
+}

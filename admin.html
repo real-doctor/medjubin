@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관리자 AI 스튜디오 | 의주빈 아카이브 3분할 스마트 인제스천</title>
+  
+  <!-- Remix Icon CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <!-- Web Fonts -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand-wrapper">
+          <div class="brand-logo" style="background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
+            <i class="ri-robot-2-line"></i>
+          </div>
+          <div class="brand-info">
+            <h1>
+              관리자 AI 스튜디오
+              <span class="brand-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4);">3-WAY SMART TRIAGE</span>
+            </h1>
+            <p class="brand-sub">1차 3분할(승인/검토/배제) ➔ 2차 AI 선별 팩트체크 초고속 인제스천</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <a href="index.html" class="btn btn-secondary">
+            <i class="ri-arrow-left-line"></i> 메인 아카이브로 이동
+          </a>
+          <button id="publishApprovedBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            <i class="ri-upload-cloud-2-fill"></i> 승인 데이터 아카이브 발행
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="admin-layout">
+      
+      <!-- 3-Way Triage Pipeline Control Panel -->
+      <section class="ai-control-panel">
+        <div class="ai-header-row">
+          <div class="ai-title-wrap">
+            <div class="ai-pulse-icon"><i class="ri-git-branch-fill"></i></div>
+            <div>
+              <h2 style="font-size: 1.15rem; font-weight: 800;">1차 3분할(승인/검토/배제) 스마트 필터링 시스템</h2>
+              <p style="font-size: 0.82rem; color: var(--text-secondary);">
+                구속·실형·대리수술·강간은 <strong>승인</strong>, 성추행·무죄/무혐의 언급은 <strong>AI 검토</strong>, 복지부·해외사례(中·日·美)·한의사·동음이의어는 <strong>즉시 배제</strong>합니다.
+              </p>
+            </div>
+          </div>
+
+          <!-- Master Action Buttons -->
+          <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+            <button id="runStage1Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #38bdf8; color: #38bdf8;">
+              <i class="ri-filter-3-fill"></i> 1단계 3분할 필터 실행 (0.1초)
+            </button>
+            <button id="runStage2Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
+              <i class="ri-robot-2-fill"></i> '검토 대상'만 AI 팩트체크 실행
+            </button>
+            <button id="startPipelineBtn" class="btn btn-primary" style="padding: 0.75rem 1.4rem; font-size: 0.92rem; background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
+              <i class="ri-rocket-2-fill"></i> 3분할 전체 일괄 실행 (원클릭)
+            </button>
+          </div>
+        </div>
+
+        <!-- 3-Way Triage Rules Summary Cards -->
+        <div class="triage-rules-grid">
+          <div class="triage-card pass">
+            <div class="triage-header">
+              <span class="triage-badge pass">✅ 직통 승인 (PASS)</span>
+              <span id="triageCountPass" class="triage-num">0건</span>
+            </div>
+            <div class="triage-body">
+              • <code>구속</code>, <code>실형</code>, <code>대리수술</code>, <code>강간</code> 명시 사건<br>
+              • <strong>국내 양의사 명확 사건 (AI 호출 없이 0.1초 승인)</strong>
+            </div>
+          </div>
+
+          <div class="triage-card review">
+            <div class="triage-header">
+              <span class="triage-badge review">⚠️ AI 정밀 검토 (REVIEW)</span>
+              <span id="triageCountReview" class="triage-num">0건</span>
+            </div>
+            <div class="triage-body">
+              • <code>성폭행</code>, <code>성범죄</code>, <code>성추행</code>, <code>불법촬영</code><br>
+              • <code>무죄</code>, <code>무혐의</code> 등 복합 쟁점 언급 기사 (AI 팩트체크)
+            </div>
+          </div>
+
+          <div class="triage-card reject">
+            <div class="triage-header">
+              <span class="triage-badge reject">❌ 즉시 배제 (REJECT)</span>
+              <span id="triageCountReject" class="triage-num">0건</span>
+            </div>
+            <div class="triage-body">
+              • <code>복지부</code>, <code>보건복지부</code> 행정/정책 기사<br>
+              • <code>中</code>, <code>日</code>, <code>美</code>, <code>중국</code>, <code>미국</code>, <code>일본</code> 등 해외 사례<br>
+              • <code>한의사</code>, <code>치과의사</code>, <code>의사소통/표시</code> 동음이의어
+            </div>
+          </div>
+        </div>
+
+        <!-- API Key Input & Model Setup Row -->
+        <div id="geminiApiRow" class="ai-api-row">
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.3rem;">
+              <i class="ri-key-2-fill" style="color: var(--accent-secondary);"></i> Gemini 3.7+ API 키 및 병렬 설정 (검토 대상 기사 전용):
+            </label>
+            <div id="apiKeyStatusBadge" class="api-status-badge">
+              <i class="ri-shield-check-line"></i> 키 상태 미확인
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
+            <!-- API Key Input -->
+            <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
+              <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="AIzaSy... (Google AI Studio 발급 키)">
+              <button id="toggleKeyVisibilityBtn" class="btn-icon-inner" title="API 키 보기/숨기기">
+                <i class="ri-eye-line"></i>
+              </button>
+            </div>
+
+            <!-- Model Dropdown -->
+            <select id="geminiModelSelect" class="custom-select" style="min-width: 200px; flex: 1;" title="사용할 Gemini 모델">
+              <option value="auto">⚡ 최신 모델 자동 감지 (Gemini 3.7 우선)</option>
+              <option value="gemini-3.7-flash">gemini-3.7-flash (초고속 추천)</option>
+              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (경량 고속)</option>
+              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (심층 추론)</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+            </select>
+
+            <!-- Concurrency Select -->
+            <select id="concurrencySelect" class="custom-select" style="min-width: 140px;" title="AI 동시 병렬 요청 수">
+              <option value="5" selected>⚡ 5개 동시 병렬</option>
+              <option value="8">🚀 8개 동시 병렬</option>
+              <option value="10">🔥 10개 동시 병렬</option>
+              <option value="3">3개 동시 병렬</option>
+            </select>
+
+            <button id="saveApiKeyBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+              <i class="ri-save-line"></i> 저장
+            </button>
+
+            <!-- API Key Real Test Button -->
+            <button id="testApiKeyBtn" class="btn btn-primary" style="font-size: 0.82rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+              <i class="ri-wifi-line"></i> 연결 테스트
+            </button>
+          </div>
+
+          <!-- Test Result Box -->
+          <div id="apiTestResultBox" class="api-test-result-box" style="display: none;">
+            <div id="apiTestResultContent"></div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div>
+          <div class="ai-status-summary-bar" style="margin-bottom: 0.4rem;">
+            <span id="aiProgressText">3분할 파이프라인 준비 완료</span>
+            <span id="aiStatsSummary">대기열 총 0건</span>
+          </div>
+          <div class="ai-progress-wrapper">
+            <div id="aiProgressBar" class="ai-progress-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Review Tabs and Filter Controls -->
+      <section class="review-tabs-row">
+        <div class="review-tabs">
+          <button class="review-tab-btn active" data-tab="all">
+            <i class="ri-list-unordered"></i> 전체 대기열 <span class="badge-num" id="badgeCountAll">0</span>
+          </button>
+          <button class="review-tab-btn" data-tab="approved" style="color: #10b981;">
+            <i class="ri-checkbox-circle-fill"></i> 최종 승인 <span class="badge-num" id="badgeCountApproved">0</span>
+          </button>
+          <button class="review-tab-btn" data-tab="review" style="color: #f59e0b;">
+            <i class="ri-error-warning-fill"></i> AI 검토 대상 <span class="badge-num" id="badgeCountReview">0</span>
+          </button>
+          <button class="review-tab-btn" data-tab="rejected" style="color: #ef4444;">
+            <i class="ri-close-circle-fill"></i> 배제 / 탈락 <span class="badge-num" id="badgeCountRejected">0</span>
+          </button>
+          <button class="review-tab-btn" data-tab="pending">
+            <i class="ri-time-line"></i> 미분석 <span class="badge-num" id="badgeCountPending">0</span>
+          </button>
+        </div>
+
+        <div style="font-size: 0.82rem; color: var(--text-muted);">
+          * 각 기사 우측의 [승인/반려] 버튼을 눌러 판정 결과를 언제든지 수동으로 변경할 수 있습니다.
+        </div>
+      </section>
+
+      <!-- Review Items Table Card -->
+      <section class="review-table-card">
+        <div id="reviewItemsList">
+          <!-- Dynamically injected via admin.js -->
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/admin_queue.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
