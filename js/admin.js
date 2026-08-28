@@ -68,6 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPage = 1;
   const ITEMS_PER_PAGE = 30;
 
+  // Visitor Analytics Dashboard State
+  let currentAnalyticsPeriod = '7d';
+  let currentAnalyticsLogPage = 1;
+  let analyticsDailyTrendChartInstance = null;
+  let analyticsHourlyChartInstance = null;
+  let analyticsReferrerChartInstance = null;
+  let analyticsDeviceChartInstance = null;
+
   // Active verified working model endpoint
   let verifiedModelEndpoint = localStorage.getItem('gemini_verified_endpoint') || 'v1beta/models/gemini-3.7-flash:generateContent';
   let verifiedModelName = localStorage.getItem('gemini_verified_model') || 'gemini-3.7-flash';
@@ -345,6 +353,107 @@ document.addEventListener('DOMContentLoaded', () => {
         renderReviewList();
       });
     });
+
+    // =========================================================================
+    // Primary Mode Switcher (AI Ingestion vs Analytics)
+    // =========================================================================
+    const tabModeAiBtn = document.getElementById('tabModeAiBtn');
+    const tabModeAnalyticsBtn = document.getElementById('tabModeAnalyticsBtn');
+    const aiStudioView = document.getElementById('aiStudioView');
+    const analyticsDashboardView = document.getElementById('analyticsDashboardView');
+
+    if (tabModeAiBtn && tabModeAnalyticsBtn) {
+      tabModeAiBtn.addEventListener('click', () => {
+        tabModeAiBtn.classList.add('active');
+        tabModeAnalyticsBtn.classList.remove('active');
+        if (aiStudioView) aiStudioView.style.display = 'block';
+        if (analyticsDashboardView) analyticsDashboardView.style.display = 'none';
+      });
+
+      tabModeAnalyticsBtn.addEventListener('click', () => {
+        tabModeAnalyticsBtn.classList.add('active');
+        tabModeAiBtn.classList.remove('active');
+        if (aiStudioView) aiStudioView.style.display = 'none';
+        if (analyticsDashboardView) analyticsDashboardView.style.display = 'block';
+        renderAnalyticsDashboard();
+      });
+    }
+
+    // Analytics Period Filter Buttons
+    document.querySelectorAll('.analytics-period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.analytics-period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentAnalyticsPeriod = btn.getAttribute('data-period') || '7d';
+        renderAnalyticsDashboard();
+      });
+    });
+
+    // Analytics Action Buttons
+    const refreshAnalyticsBtn = document.getElementById('refreshAnalyticsBtn');
+    if (refreshAnalyticsBtn) {
+      refreshAnalyticsBtn.addEventListener('click', () => {
+        renderAnalyticsDashboard();
+      });
+    }
+
+    const exportCsvAnalyticsBtn = document.getElementById('exportCsvAnalyticsBtn');
+    if (exportCsvAnalyticsBtn) {
+      exportCsvAnalyticsBtn.addEventListener('click', () => {
+        if (typeof Tracker !== 'undefined') {
+          Tracker.exportCsv();
+        }
+      });
+    }
+
+    const simulateTrafficBtn = document.getElementById('simulateTrafficBtn');
+    if (simulateTrafficBtn) {
+      simulateTrafficBtn.addEventListener('click', () => {
+        if (typeof Tracker !== 'undefined') {
+          Tracker.generateSampleTraffic(12);
+          renderAnalyticsDashboard();
+          alert('⚡ 테스트 방문자 트래픽 12건이 즉시 생성되어 통계에 실시간 반영되었습니다!');
+        }
+      });
+    }
+
+    const resetAnalyticsBtn = document.getElementById('resetAnalyticsBtn');
+    if (resetAnalyticsBtn) {
+      resetAnalyticsBtn.addEventListener('click', () => {
+        if (confirm('모든 방문 통계 및 최근 방문자 활동 로그를 초기화하시겠습니까?')) {
+          if (typeof Tracker !== 'undefined') {
+            Tracker.clearStats();
+            Tracker.seedInitialHistoricalData();
+            renderAnalyticsDashboard();
+            alert('방문 통계 데이터가 초기화되었습니다.');
+          }
+        }
+      });
+    }
+
+    // Analytics Log Pagination Controls
+    const logPrevBtn = document.getElementById('analyticsLogPrevBtn');
+    if (logPrevBtn) {
+      logPrevBtn.addEventListener('click', () => {
+        if (currentAnalyticsLogPage > 1) {
+          currentAnalyticsLogPage--;
+          renderAnalyticsLogTable(currentAnalyticsLogPage);
+        }
+      });
+    }
+
+    const logNextBtn = document.getElementById('analyticsLogNextBtn');
+    if (logNextBtn) {
+      logNextBtn.addEventListener('click', () => {
+        if (typeof Tracker !== 'undefined') {
+          const logsData = Tracker.getRecentLogs(15, currentAnalyticsLogPage);
+          if (currentAnalyticsLogPage < logsData.totalPages) {
+            currentAnalyticsLogPage++;
+            renderAnalyticsLogTable(currentAnalyticsLogPage);
+          }
+        }
+      });
+    }
   }
 
   // =========================================================================
@@ -1363,4 +1472,510 @@ const REGIONS_LIST = [
       renderReviewList();
     }
   };
+
+  // =========================================================================
+  // Visitor Analytics Dashboard Controller & Chart Engine
+  // =========================================================================
+  function renderAnalyticsDashboard() {
+    if (typeof Tracker === 'undefined') return;
+
+    const stats = Tracker.getStats(currentAnalyticsPeriod);
+    if (!stats) return;
+
+    // Period Labels
+    const periodMap = {
+      'today': '오늘 하루',
+      '7d': '최근 7일간',
+      '30d': '최근 30일간',
+      'all': '전체 누적 기간'
+    };
+    const periodLabel = periodMap[currentAnalyticsPeriod] || '선택 기간';
+
+    // 1. Update KPI Values
+    const kpiTotalPv = document.getElementById('kpiTotalPv');
+    const kpiTotalPvSub = document.getElementById('kpiTotalPvSub');
+    if (kpiTotalPv) kpiTotalPv.textContent = stats.totalPV.toLocaleString();
+    if (kpiTotalPvSub) kpiTotalPvSub.textContent = `${periodLabel} 누적 페이지 조회`;
+
+    const kpiTotalUv = document.getElementById('kpiTotalUv');
+    const kpiTotalUvSub = document.getElementById('kpiTotalUvSub');
+    if (kpiTotalUv) kpiTotalUv.textContent = stats.totalUV.toLocaleString();
+    if (kpiTotalUvSub) {
+      const uvPercent = Math.round((stats.totalUV / Math.max(1, stats.totalPV)) * 100);
+      kpiTotalUvSub.textContent = `순 방문율 ${uvPercent}% (고유 식별자)`;
+    }
+
+    const kpiPvPerUv = document.getElementById('kpiPvPerUv');
+    const kpiDurationSub = document.getElementById('kpiDurationSub');
+    if (kpiPvPerUv) kpiPvPerUv.textContent = `${stats.pvPerUv} PV`;
+    if (kpiDurationSub) {
+      const min = Math.floor(stats.avgDurationSeconds / 60);
+      const sec = stats.avgDurationSeconds % 60;
+      kpiDurationSub.textContent = `평균 체류 시간: 약 ${min}분 ${sec}초`;
+    }
+
+    const kpiTotalEvents = document.getElementById('kpiTotalEvents');
+    const kpiEventsSub = document.getElementById('kpiEventsSub');
+    if (kpiTotalEvents) kpiTotalEvents.textContent = stats.totalEvents.toLocaleString();
+    if (kpiEventsSub) kpiEventsSub.textContent = `사건 열람 · 키워드 검색 · 필터링`;
+
+    // 2. Render Charts
+    renderDailyTrendChart(stats.trendData);
+    renderHourlyChart(stats.hourlyAggregate);
+    renderReferrerChart(stats.referrersAggregate);
+    renderDeviceChart(stats.devicesAggregate);
+
+    // 3. Render Rankings
+    renderTopArticlesList(stats.topArticles, stats.totalPV);
+    renderTopSearchesList(stats.topSearches, stats.totalEvents);
+
+    // 4. Render Real-time Activity Log Table
+    renderAnalyticsLogTable(currentAnalyticsLogPage);
+  }
+
+  // Chart 1: Daily Trend (PV & UV Combo)
+  function renderDailyTrendChart(trendData) {
+    const canvas = document.getElementById('analyticsDailyTrendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (analyticsDailyTrendChartInstance) analyticsDailyTrendChartInstance.destroy();
+
+    const labels = trendData.map(d => d.label);
+    const pvData = trendData.map(d => d.pv);
+    const uvData = trendData.map(d => d.uv);
+
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+
+    analyticsDailyTrendChartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'line',
+            label: '순 방문자수 (UV)',
+            data: uvData,
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.15)',
+            borderWidth: 2.5,
+            pointRadius: 3.5,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#38bdf8',
+            tension: 0.35,
+            yAxisID: 'y'
+          },
+          {
+            type: 'bar',
+            label: '페이지뷰 (PV)',
+            data: pvData,
+            backgroundColor: 'rgba(99, 102, 241, 0.45)',
+            hoverBackgroundColor: 'rgba(99, 102, 241, 0.8)',
+            borderColor: '#6366f1',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { boxWidth: 12, padding: 12, color: textColor, font: { size: 11, family: "'Pretendard', sans-serif" } }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(56, 189, 248, 0.3)',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: function(ctx) {
+                return ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}건`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: gridColor },
+            ticks: { color: textColor, font: { size: 10, family: "'JetBrains Mono', monospace" } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: gridColor },
+            ticks: { color: textColor, font: { size: 10, family: "'JetBrains Mono', monospace" } }
+          }
+        }
+      }
+    });
+  }
+
+  // Chart 2: Hourly Distribution (00시 ~ 23시)
+  function renderHourlyChart(hourlyData) {
+    const canvas = document.getElementById('analyticsHourlyChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (analyticsHourlyChartInstance) analyticsHourlyChartInstance.destroy();
+
+    const labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}시`);
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+
+    // 피크 시간대(12~14시, 20~23시) 강조 색상
+    const bgColors = hourlyData.map((_, idx) => {
+      if ((idx >= 12 && idx <= 13) || (idx >= 20 && idx <= 23)) {
+        return 'rgba(245, 158, 11, 0.85)'; // 피크 골든타임 오렌지
+      }
+      return 'rgba(245, 158, 11, 0.35)';
+    });
+
+    analyticsHourlyChartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '시간대별 방문 수',
+          data: hourlyData,
+          backgroundColor: bgColors,
+          borderColor: '#f59e0b',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(245, 158, 11, 0.3)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(ctx) {
+                return ` 방문수: ${ctx.raw.toLocaleString()}회`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: gridColor },
+            ticks: { color: textColor, font: { size: 9, family: "'JetBrains Mono', monospace" } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: gridColor },
+            ticks: { color: textColor, font: { size: 10, family: "'JetBrains Mono', monospace" } }
+          }
+        }
+      }
+    });
+  }
+
+  // Chart 3: Referrers / Traffic Channels
+  function renderReferrerChart(referrersData) {
+    const canvas = document.getElementById('analyticsReferrerChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (analyticsReferrerChartInstance) analyticsReferrerChartInstance.destroy();
+
+    const keys = Object.keys(referrersData);
+    const values = Object.values(referrersData);
+    const total = values.reduce((a, b) => a + b, 0) || 1;
+
+    const colors = [
+      '#38bdf8', // Google blue
+      '#10b981', // Naver green
+      '#f59e0b', // DC orange
+      '#6366f1', // FMKorea indigo
+      '#8b5cf6', // X/Twitter purple
+      '#06b6d4', // Direct cyan
+      '#ec4899', // Pink
+      '#94a3b8'  // Gray
+    ];
+
+    analyticsReferrerChartInstance = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: keys,
+        datasets: [{
+          data: values,
+          backgroundColor: colors.slice(0, keys.length),
+          borderColor: 'transparent',
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              boxWidth: 12,
+              padding: 8,
+              color: '#94a3b8',
+              font: { size: 11, family: "'Pretendard', sans-serif" }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const pct = Math.round((ctx.raw / total) * 100);
+                return ` ${ctx.label}: ${ctx.raw.toLocaleString()}건 (${pct}%)`;
+              }
+            }
+          }
+        },
+        cutout: '62%'
+      }
+    });
+  }
+
+  // Chart 4: Devices & OS Share
+  function renderDeviceChart(devicesData) {
+    const canvas = document.getElementById('analyticsDeviceChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (analyticsDeviceChartInstance) analyticsDeviceChartInstance.destroy();
+
+    const labels = ['모바일 (Mobile)', '데스크톱 (Desktop)', '태블릿 (Tablet)'];
+    const values = [
+      devicesData.Mobile || 0,
+      devicesData.Desktop || 0,
+      devicesData.Tablet || 0
+    ];
+    const total = values.reduce((a, b) => a + b, 0) || 1;
+
+    analyticsDeviceChartInstance = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6'],
+          borderColor: 'transparent',
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              boxWidth: 12,
+              padding: 10,
+              color: '#94a3b8',
+              font: { size: 11, family: "'Pretendard', sans-serif" }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const pct = Math.round((ctx.raw / total) * 100);
+                return ` ${ctx.label}: ${ctx.raw.toLocaleString()}건 (${pct}%)`;
+              }
+            }
+          }
+        },
+        cutout: '62%'
+      }
+    });
+  }
+
+  // Ranking 1: Most Viewed Articles List
+  function renderTopArticlesList(topArticles, totalPV) {
+    const container = document.getElementById('analyticsTopArticlesList');
+    if (!container) return;
+
+    if (!topArticles || topArticles.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">조회된 사건 데이터가 없습니다.</p>';
+      return;
+    }
+
+    const maxViews = Math.max(...topArticles.map(a => a.views || 0), 1);
+
+    let html = '';
+    topArticles.forEach((art, idx) => {
+      const rank = idx + 1;
+      const rankClass = rank === 1 ? 'top-1' : rank === 2 ? 'top-2' : rank === 3 ? 'top-3' : '';
+      const percent = Math.round(((art.views || 0) / maxViews) * 100);
+
+      const catNames = {
+        sex_crime: '성범죄',
+        narcotics: '마약류',
+        proxy_surgery: '대리수술',
+        malpractice_hazard: '의료사고',
+        fraud_rebate: '보험사기',
+        other_crimes: '형사사건'
+      };
+      const catLabel = catNames[art.category] || '사건';
+
+      html += `
+        <div class="ranking-item-row">
+          <div class="ranking-num-badge ${rankClass}">${rank}</div>
+          <div class="ranking-item-info">
+            <div class="ranking-item-title" title="${art.title}">
+              ${art.title}
+            </div>
+            <div class="ranking-item-meta">
+              <span class="badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; font-size: 0.7rem; padding: 0.1rem 0.4rem;">${catLabel}</span>
+              <span><i class="ri-map-pin-2-line"></i> ${art.region || '전국'}</span>
+            </div>
+          </div>
+          <div class="ranking-count-box">
+            <span class="ranking-count-num">${(art.views || 0).toLocaleString()}회</span>
+            <div style="width: 70px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;">
+              <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #8b5cf6 100%);"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  // Ranking 2: Top Search Queries List
+  function renderTopSearchesList(topSearches, totalEvents) {
+    const container = document.getElementById('analyticsTopSearchesList');
+    if (!container) return;
+
+    if (!topSearches || topSearches.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">검색어 통계 데이터가 없습니다.</p>';
+      return;
+    }
+
+    const maxCount = Math.max(...topSearches.map(s => s.count || 0), 1);
+
+    let html = '';
+    topSearches.forEach((s, idx) => {
+      const rank = idx + 1;
+      const rankClass = rank === 1 ? 'top-1' : rank === 2 ? 'top-2' : rank === 3 ? 'top-3' : '';
+      const percent = Math.round((s.count / maxCount) * 100);
+
+      html += `
+        <div class="ranking-item-row">
+          <div class="ranking-num-badge ${rankClass}">${rank}</div>
+          <div class="ranking-item-info">
+            <div class="ranking-item-title" style="color: #38bdf8; font-weight: 800;">
+              "${s.query}"
+            </div>
+            <div class="ranking-item-meta">
+              <span><i class="ri-search-2-line"></i> 아카이브 키워드 검색</span>
+            </div>
+          </div>
+          <div class="ranking-count-box">
+            <span class="ranking-count-num" style="color: #38bdf8;">${s.count.toLocaleString()}회</span>
+            <div style="width: 60px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;">
+              <div style="width: ${percent}%; height: 100%; background: #38bdf8;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  // Realtime Activity Log Table Renderer
+  function renderAnalyticsLogTable(page = 1) {
+    const tbody = document.getElementById('analyticsLogTableBody');
+    const badge = document.getElementById('analyticsLogTotalCountBadge');
+    const pageInfo = document.getElementById('analyticsLogPaginationInfo');
+    const pageSpan = document.getElementById('analyticsLogCurrentPageSpan');
+    const prevBtn = document.getElementById('analyticsLogPrevBtn');
+    const nextBtn = document.getElementById('analyticsLogNextBtn');
+
+    if (!tbody || typeof Tracker === 'undefined') return;
+
+    const logData = Tracker.getRecentLogs(15, page);
+    if (badge) badge.textContent = `총 ${logData.total.toLocaleString()}건`;
+    if (pageSpan) pageSpan.textContent = `${logData.page} / ${logData.totalPages}`;
+    if (pageInfo) {
+      const start = (logData.page - 1) * logData.limit + 1;
+      const end = Math.min(logData.total, start + logData.limit - 1);
+      pageInfo.textContent = logData.total > 0 ? `${start} - ${end} / 총 ${logData.total}건` : '0건';
+    }
+
+    if (prevBtn) prevBtn.disabled = (logData.page <= 1);
+    if (nextBtn) nextBtn.disabled = (logData.page >= logData.totalPages);
+
+    if (logData.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">수집된 방문자 로그가 없습니다.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    logData.items.forEach(log => {
+      // Device badge
+      let devIcon = 'ri-computer-line';
+      if (log.device === 'Mobile') devIcon = 'ri-smartphone-line';
+      else if (log.device === 'Tablet') devIcon = 'ri-tablet-line';
+
+      // Ref badge style
+      let refClass = 'direct';
+      if (log.referrer.includes('Google')) refClass = 'google';
+      else if (log.referrer.includes('Naver')) refClass = 'naver';
+      else if (log.referrer.includes('디시') || log.referrer.includes('에펨') || log.referrer.includes('블라인드') || log.referrer.includes('클리앙') || log.referrer.includes('뽐뿌')) refClass = 'community';
+      else if (log.referrer.includes('Twitter') || log.referrer.includes('YouTube') || log.referrer.includes('SNS')) refClass = 'sns';
+
+      // Stay duration
+      const durationStr = log.staySeconds > 0 
+        ? `${Math.floor(log.staySeconds / 60)}분 ${log.staySeconds % 60}초`
+        : '<span style="color: #34d399;">접속 중</span>';
+
+      html += `
+        <tr>
+          <td style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); white-space: nowrap;">
+            ${log.date || ''} ${log.time || ''}
+          </td>
+          <td>
+            <code style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.74rem; color: #38bdf8;">
+              ${log.path || '/index.html'}
+            </code>
+          </td>
+          <td>
+            <span class="device-badge">
+              <i class="${devIcon}"></i> ${log.device} (${log.os})
+            </span>
+          </td>
+          <td>
+            <span style="font-size: 0.76rem; color: var(--text-secondary);">
+              ${log.browser}
+            </span>
+          </td>
+          <td>
+            <span class="ref-badge ${refClass}">
+              ${log.referrer}
+            </span>
+          </td>
+          <td>
+            <span style="color: var(--text-primary); font-weight: 600; font-size: 0.8rem;">
+              ${log.action}
+            </span>
+          </td>
+          <td style="text-align: right; font-family: var(--font-mono); font-size: 0.78rem;">
+            ${durationStr}
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
 });

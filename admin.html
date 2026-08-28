@@ -12,6 +12,9 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="css/index.css">
   <link rel="stylesheet" href="css/components.css">
@@ -73,299 +76,578 @@
     </header>
 
     <main class="admin-layout">
-      
-      <!-- 1. Live News Crawler Panel (실시간 날짜 지정 뉴스 자동 수집기) -->
-      <section class="live-crawler-panel" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.25rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-              <i class="ri-radar-line"></i>
-            </div>
-            <div>
-              <h3 style="font-size: 0.98rem; font-weight: 800; color: #e0f2fe; margin-bottom: 0.1rem;">
-                실시간 언론 뉴스 자동 수집기 (Live Crawler)
-              </h3>
-              <p style="font-size: 0.78rem; color: var(--text-muted);">
-                날짜 범위를 지정하여 포털 및 공중파/주요 일간지의 의사 사건 보도 기사를 실시간 크롤링합니다.
-              </p>
-            </div>
+
+      <!-- Top Level Mode Switcher Tabs -->
+      <nav class="admin-mode-nav">
+        <button type="button" id="tabModeAiBtn" class="admin-mode-tab active" data-mode="ai">
+          <div class="mode-tab-icon ai-mode-icon">
+            <i class="ri-robot-2-fill"></i>
           </div>
-
-          <!-- Date Range Quick Presets -->
-          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1개월</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('6m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 6개월</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1y', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1년</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2025', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2025년 전체</button>
-            <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2024', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2024년 전체</button>
-            <button type="button" class="btn btn-secondary date-preset-btn active" onclick="setDatePreset('all', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">2020~현재 전체</button>
+          <div class="mode-tab-info">
+            <span class="mode-tab-title">AI 기사 인제스천 & 큐 관리</span>
+            <span class="mode-tab-desc">실시간 크롤링 · 3분할 팩트체크 · DB 발행</span>
           </div>
-        </div>
+        </button>
 
-        <div style="display: flex; gap: 0.6rem; width: 100%; align-items: center; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 280px;">
-            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap;">기간 설정:</label>
-            <input type="date" id="crawlStartDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2020-01-01">
-            <span style="color: var(--text-muted);">~</span>
-            <input type="date" id="crawlEndDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2026-12-31">
+        <button type="button" id="tabModeAnalyticsBtn" class="admin-mode-tab" data-mode="analytics">
+          <div class="mode-tab-icon analytics-mode-icon">
+            <i class="ri-bar-chart-box-fill"></i>
           </div>
-
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button id="startLiveCrawlBtn" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.2rem; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
-              <i class="ri-play-circle-fill"></i> 실시간 뉴스 수집 시작
-            </button>
-            <button id="resetQueueBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="대기열 초기화">
-              <i class="ri-refresh-line"></i> 대기열 리셋
-            </button>
+          <div class="mode-tab-info">
+            <span class="mode-tab-title">방문자 통계 분석 (Analytics)</span>
+            <span class="mode-tab-desc">실시간 트래픽 · 유입 경로 · 인기 기사 · 로그</span>
           </div>
-        </div>
+          <span class="live-pulse-badge"><span class="pulse-dot"></span> LIVE</span>
+        </button>
+      </nav>
 
-        <!-- Crawler Progress Box -->
-        <div id="crawlerStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd;">
-          <i class="ri-loader-4-line ri-spin"></i> 뉴스 수집 진행 중...
-        </div>
-      </section>
-
-      <!-- 2. 3-Way Triage Pipeline Control Panel -->
-      <section class="ai-control-panel">
-        <div class="ai-header-row">
-          <div class="ai-title-wrap">
-            <div class="ai-pulse-icon"><i class="ri-git-branch-fill"></i></div>
-            <div>
-              <h2 style="font-size: 1.15rem; font-weight: 800;">1차 3분할(승인/검토/배제) 스마트 필터링 시스템</h2>
-              <p style="font-size: 0.82rem; color: var(--text-secondary);">
-                구속·실형·대리수술·강간은 <strong>승인</strong>, 성추행·무죄/무혐의 언급은 <strong>AI 검토</strong>, 복지부·해외사례(中·日·美)·한의사·동음이의어는 <strong>즉시 배제</strong>합니다.
-              </p>
-            </div>
-          </div>
-
-          <!-- Master Action Buttons -->
-          <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-            <button id="runStage1Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #38bdf8; color: #38bdf8;">
-              <i class="ri-filter-3-fill"></i> 1단계 3분할 필터 실행 (0.1초)
-            </button>
-            <button id="runStage2Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
-              <i class="ri-robot-2-fill"></i> '검토 대상'만 AI 팩트체크 실행
-            </button>
-            <button id="startPipelineBtn" class="btn btn-primary" style="padding: 0.75rem 1.4rem; font-size: 0.92rem; background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
-              <i class="ri-rocket-2-fill"></i> 3분할 전체 일괄 실행 (원클릭)
-            </button>
-          </div>
-        </div>
-
-        <!-- 3-Way Triage Rules Summary Cards -->
-        <div class="triage-rules-grid">
-          <div class="triage-card pass">
-            <div class="triage-header">
-              <span class="triage-badge pass">✅ 직통 승인 (PASS)</span>
-              <span id="triageCountPass" class="triage-num">0건</span>
-            </div>
-            <div class="triage-body">
-              • <code>구속</code>, <code>실형</code>, <code>대리수술</code>, <code>강간</code> 명시 사건<br>
-              • <strong>국내 양의사 명확 사건 (AI 호출 없이 0.1초 승인)</strong>
-            </div>
-          </div>
-
-          <div class="triage-card review">
-            <div class="triage-header">
-              <span class="triage-badge review">⚠️ AI 정밀 검토 (REVIEW)</span>
-              <span id="triageCountReview" class="triage-num">0건</span>
-            </div>
-            <div class="triage-body">
-              • <code>성폭행</code>, <code>성범죄</code>, <code>성추행</code>, <code>불법촬영</code><br>
-              • <code>무죄</code>, <code>무혐의</code> 등 복합 쟁점 언급 기사 (AI 팩트체크)
-            </div>
-          </div>
-
-          <div class="triage-card reject">
-            <div class="triage-header">
-              <span class="triage-badge reject">❌ 즉시 배제 (REJECT)</span>
-              <span id="triageCountReject" class="triage-num">0건</span>
-            </div>
-            <div class="triage-body">
-              • <code>복지부</code>, <code>보건복지부</code> 행정/정책 기사<br>
-              • <code>中</code>, <code>日</code>, <code>美</code>, <code>印</code> 등 해외 사건<br>
-              • <code>한의사</code>, <code>치과의사</code>, <code>거부 의사</code> 등 동음이의어
-            </div>
-          </div>
-        </div>
-
-        <!-- Git-as-a-DB Direct Sync Card -->
-        <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <!-- =================================================================== -->
+      <!-- VIEW 1: AI Ingestion & Queue Management Studio                      -->
+      <!-- =================================================================== -->
+      <div id="aiStudioView" class="admin-view active">
+        <!-- 1. Live News Crawler Panel (실시간 날짜 지정 뉴스 자동 수집기) -->
+        <section class="live-crawler-panel" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <i class="ri-git-repository-commits-line" style="color: #60a5fa; font-size: 1.2rem;"></i>
-              <strong style="font-size: 0.92rem; color: #93c5fd;">Git-as-a-DB 자동 동기화 설정 (GitHub REST API)</strong>
-            </div>
-            <span style="font-size: 0.76rem; color: var(--text-muted);">
-              저장소: <code>real-doctor/medjubin</code> (branch: <code>main</code>)
-            </span>
-          </div>
-
-          <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
-            <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
-              <input type="password" id="githubPatInput" class="api-key-input" placeholder="ghp_... (GitHub Personal Access Token - repo 권한)">
-              <button id="toggleGithubKeyVisibilityBtn" class="btn-icon-inner" title="토큰 보기/숨기기">
-                <i class="ri-eye-line"></i>
-              </button>
-            </div>
-
-            <button id="saveGithubPatBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
-              <i class="ri-save-line"></i> 토큰 저장
-            </button>
-
-            <button id="syncGitDbBtn" class="btn btn-primary" style="font-size: 0.85rem; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-              <i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋 & 발행
-            </button>
-
-            <button id="downloadLocalDataBtn" class="btn btn-secondary" style="font-size: 0.82rem;" title="data.js 파일로 직접 다운로드">
-              <i class="ri-download-2-line"></i> data.js 다운로드
-            </button>
-          </div>
-
-          <div id="gitSyncStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem;"></div>
-        </div>
-
-        <!-- 3. Report Threshold & User Governance Settings (신고 자동 숨김 기준치 설정) -->
-        <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <i class="ri-alarm-warning-fill" style="color: #f87171; font-size: 1.2rem;"></i>
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                <i class="ri-radar-line"></i>
+              </div>
               <div>
-                <strong style="font-size: 0.92rem; color: #fca5a5;">'의사 관련 범죄 아님' 이용자 신고 자동 숨김 기준치 설정</strong>
-                <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.1rem;">
-                  이용자가 기사 상세창에서 '의사 관련 범죄 아님'을 누른 횟수가 설정값에 도달하면 메인 목록에서 즉시 자동 제외됩니다.
+                <h3 style="font-size: 0.98rem; font-weight: 800; color: #e0f2fe; margin-bottom: 0.1rem;">
+                  실시간 언론 뉴스 자동 수집기 (Live Crawler)
+                </h3>
+                <p style="font-size: 0.78rem; color: var(--text-muted);">
+                  날짜 범위를 지정하여 포털 및 공중파/주요 일간지의 의사 사건 보도 기사를 실시간 크롤링합니다.
                 </p>
               </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-              <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 700;">자동 제외 기준 누적 횟수:</label>
-              <input type="number" id="reportHideThresholdInput" class="api-key-input" style="width: 80px; text-align: center; font-weight: 700; font-size: 0.9rem; padding: 0.45rem;" min="1" max="1000" value="20">
-              <span style="font-size: 0.8rem; color: var(--text-muted);">회</span>
-              <button id="saveReportThresholdBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
-                <i class="ri-save-line"></i> 기준치 저장
-              </button>
-              <button id="resetAllReportsBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="모든 기사의 신고 누적 카운트 초기화">
-                <i class="ri-refresh-line"></i> 전체 신고 리셋
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- API Key Input & Model Setup Row -->
-        <div id="geminiApiRow" class="ai-api-row" style="margin-top: 1rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
-            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.3rem;">
-              <i class="ri-key-2-fill" style="color: var(--accent-secondary);"></i> Gemini 3.7+ API 키 및 병렬 설정 (검토 대상 기사 전용):
-            </label>
-            <div id="apiKeyStatusBadge" class="api-status-badge">
-              <i class="ri-shield-check-line"></i> 키 상태 미확인
+            <!-- Date Range Quick Presets -->
+            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1개월</button>
+              <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('6m', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 6개월</button>
+              <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('1y', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">최근 1년</button>
+              <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2025', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2025년 전체</button>
+              <button type="button" class="btn btn-secondary date-preset-btn" onclick="setDatePreset('2024', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem;">2024년 전체</button>
+              <button type="button" class="btn btn-secondary date-preset-btn active" onclick="setDatePreset('all', this)" style="padding: 0.35rem 0.65rem; font-size: 0.76rem; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">2020~현재 전체</button>
             </div>
           </div>
 
-          <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
-            <!-- API Key Input -->
-            <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
-              <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="AIzaSy... (Google AI Studio 발급 키)">
-              <button id="toggleKeyVisibilityBtn" class="btn-icon-inner" title="API 키 보기/숨기기">
-                <i class="ri-eye-line"></i>
+          <div style="display: flex; gap: 0.6rem; width: 100%; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 280px;">
+              <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap;">기간 설정:</label>
+              <input type="date" id="crawlStartDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2020-01-01">
+              <span style="color: var(--text-muted);">~</span>
+              <input type="date" id="crawlEndDate" class="api-key-input" style="flex: 1; min-width: 120px; font-size: 0.82rem; padding: 0.45rem 0.75rem;" value="2026-12-31">
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button id="startLiveCrawlBtn" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.2rem; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                <i class="ri-play-circle-fill"></i> 실시간 뉴스 수집 시작
+              </button>
+              <button id="resetQueueBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="대기열 초기화">
+                <i class="ri-refresh-line"></i> 대기열 리셋
+              </button>
+            </div>
+          </div>
+
+          <!-- Crawler Progress Box -->
+          <div id="crawlerStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd;">
+            <i class="ri-loader-4-line ri-spin"></i> 뉴스 수집 진행 중...
+          </div>
+        </section>
+
+        <!-- 2. 3-Way Triage Pipeline Control Panel -->
+        <section class="ai-control-panel">
+          <div class="ai-header-row">
+            <div class="ai-title-wrap">
+              <div class="ai-pulse-icon"><i class="ri-git-branch-fill"></i></div>
+              <div>
+                <h2 style="font-size: 1.15rem; font-weight: 800;">1차 3분할(승인/검토/배제) 스마트 필터링 시스템</h2>
+                <p style="font-size: 0.82rem; color: var(--text-secondary);">
+                  구속·실형·대리수술·강간은 <strong>승인</strong>, 성추행·무죄/무혐의 언급은 <strong>AI 검토</strong>, 복지부·해외사례(中·日·美)·한의사·동음이의어는 <strong>즉시 배제</strong>합니다.
+                </p>
+              </div>
+            </div>
+
+            <!-- Master Action Buttons -->
+            <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+              <button id="runStage1Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #38bdf8; color: #38bdf8;">
+                <i class="ri-filter-3-fill"></i> 1단계 3분할 필터 실행 (0.1초)
+              </button>
+              <button id="runStage2Btn" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
+                <i class="ri-robot-2-fill"></i> '검토 대상'만 AI 팩트체크 실행
+              </button>
+              <button id="startPipelineBtn" class="btn btn-primary" style="padding: 0.75rem 1.4rem; font-size: 0.92rem; background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
+                <i class="ri-rocket-2-fill"></i> 3분할 전체 일괄 실행 (원클릭)
+              </button>
+            </div>
+          </div>
+
+          <!-- 3-Way Triage Rules Summary Cards -->
+          <div class="triage-rules-grid">
+            <div class="triage-card pass">
+              <div class="triage-header">
+                <span class="triage-badge pass">✅ 직통 승인 (PASS)</span>
+                <span id="triageCountPass" class="triage-num">0건</span>
+              </div>
+              <div class="triage-body">
+                • <code>구속</code>, <code>실형</code>, <code>대리수술</code>, <code>강간</code> 명시 사건<br>
+                • <strong>국내 양의사 명확 사건 (AI 호출 없이 0.1초 승인)</strong>
+              </div>
+            </div>
+
+            <div class="triage-card review">
+              <div class="triage-header">
+                <span class="triage-badge review">⚠️ AI 정밀 검토 (REVIEW)</span>
+                <span id="triageCountReview" class="triage-num">0건</span>
+              </div>
+              <div class="triage-body">
+                • <code>성폭행</code>, <code>성범죄</code>, <code>성추행</code>, <code>불법촬영</code><br>
+                • <code>무죄</code>, <code>무혐의</code> 등 복합 쟁점 언급 기사 (AI 팩트체크)
+              </div>
+            </div>
+
+            <div class="triage-card reject">
+              <div class="triage-header">
+                <span class="triage-badge reject">❌ 즉시 배제 (REJECT)</span>
+                <span id="triageCountReject" class="triage-num">0건</span>
+              </div>
+              <div class="triage-body">
+                • <code>복지부</code>, <code>보건복지부</code> 행정/정책 기사<br>
+                • <code>中</code>, <code>日</code>, <code>美</code>, <code>印</code> 등 해외 사건<br>
+                • <code>한의사</code>, <code>치과의사</code>, <code>거부 의사</code> 등 동음이의어
+              </div>
+            </div>
+          </div>
+
+          <!-- Git-as-a-DB Direct Sync Card -->
+          <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-git-repository-commits-line" style="color: #60a5fa; font-size: 1.2rem;"></i>
+                <strong style="font-size: 0.92rem; color: #93c5fd;">Git-as-a-DB 자동 동기화 설정 (GitHub REST API)</strong>
+              </div>
+              <span style="font-size: 0.76rem; color: var(--text-muted);">
+                저장소: <code>real-doctor/medjubin</code> (branch: <code>main</code>)
+              </span>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
+              <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
+                <input type="password" id="githubPatInput" class="api-key-input" placeholder="ghp_... (GitHub Personal Access Token - repo 권한)">
+                <button id="toggleGithubKeyVisibilityBtn" class="btn-icon-inner" title="토큰 보기/숨기기">
+                  <i class="ri-eye-line"></i>
+                </button>
+              </div>
+
+              <button id="saveGithubPatBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+                <i class="ri-save-line"></i> 토큰 저장
+              </button>
+
+              <button id="syncGitDbBtn" class="btn btn-primary" style="font-size: 0.85rem; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                <i class="ri-upload-cloud-fill"></i> GitHub DB 즉시 커밋 & 발행
+              </button>
+
+              <button id="downloadLocalDataBtn" class="btn btn-secondary" style="font-size: 0.82rem;" title="data.js 파일로 직접 다운로드">
+                <i class="ri-download-2-line"></i> data.js 다운로드
               </button>
             </div>
 
-            <!-- Model Dropdown -->
-            <select id="geminiModelSelect" class="custom-select" style="min-width: 200px; flex: 1;" title="사용할 Gemini 모델">
-              <option value="auto">⚡ 최신 모델 자동 감지 (Gemini 3.7 우선)</option>
-              <option value="gemini-3.7-flash">gemini-3.7-flash (초고속 추천)</option>
-              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (경량 고속)</option>
-              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (심층 추론)</option>
-              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
-            </select>
+            <div id="gitSyncStatusBox" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.82rem;"></div>
+          </div>
 
-            <!-- Concurrency Select -->
-            <select id="concurrencySelect" class="custom-select" style="min-width: 140px;" title="AI 동시 병렬 요청 수">
-              <option value="5" selected>⚡ 5개 동시 병렬</option>
-              <option value="8">🚀 8개 동시 병렬</option>
-              <option value="10">🔥 10개 동시 병렬</option>
-              <option value="3">3개 동시 병렬</option>
-            </select>
+          <!-- 3. Report Threshold & User Governance Settings (신고 자동 숨김 기준치 설정) -->
+          <div class="git-db-panel" style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-alarm-warning-fill" style="color: #f87171; font-size: 1.2rem;"></i>
+                <div>
+                  <strong style="font-size: 0.92rem; color: #fca5a5;">'의사 관련 범죄 아님' 이용자 신고 자동 숨김 기준치 설정</strong>
+                  <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.1rem;">
+                    이용자가 기사 상세창에서 '의사 관련 범죄 아님'을 누른 횟수가 설정값에 도달하면 메인 목록에서 즉시 자동 제외됩니다.
+                  </p>
+                </div>
+              </div>
 
-            <button id="saveApiKeyBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
-              <i class="ri-save-line"></i> 저장
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 700;">자동 제외 기준 누적 횟수:</label>
+                <input type="number" id="reportHideThresholdInput" class="api-key-input" style="width: 80px; text-align: center; font-weight: 700; font-size: 0.9rem; padding: 0.45rem;" min="1" max="1000" value="20">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">회</span>
+                <button id="saveReportThresholdBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+                  <i class="ri-save-line"></i> 기준치 저장
+                </button>
+                <button id="resetAllReportsBtn" class="btn btn-secondary" style="font-size: 0.82rem; color: #f87171;" title="모든 기사의 신고 누적 카운트 초기화">
+                  <i class="ri-refresh-line"></i> 전체 신고 리셋
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Key Input & Model Setup Row -->
+          <div id="geminiApiRow" class="ai-api-row" style="margin-top: 1rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.3rem;">
+                <i class="ri-key-2-fill" style="color: var(--accent-secondary);"></i> Gemini 3.7+ API 키 및 병렬 설정 (검토 대상 기사 전용):
+              </label>
+              <div id="apiKeyStatusBadge" class="api-status-badge">
+                <i class="ri-shield-check-line"></i> 키 상태 미확인
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; width: 100%; align-items: center; flex-wrap: wrap;">
+              <!-- API Key Input -->
+              <div class="api-key-input-wrapper" style="flex: 2; min-width: 240px;">
+                <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="AIzaSy... (Google AI Studio 발급 키)">
+                <button id="toggleKeyVisibilityBtn" class="btn-icon-inner" title="API 키 보기/숨기기">
+                  <i class="ri-eye-line"></i>
+                </button>
+              </div>
+
+              <!-- Model Dropdown -->
+              <select id="geminiModelSelect" class="custom-select" style="min-width: 200px; flex: 1;" title="사용할 Gemini 모델">
+                <option value="auto">⚡ 최신 모델 자동 감지 (Gemini 3.7 우선)</option>
+                <option value="gemini-3.7-flash">gemini-3.7-flash (초고속 추천)</option>
+                <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (경량 고속)</option>
+                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (심층 추론)</option>
+                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
+              </select>
+
+              <!-- Concurrency Select -->
+              <select id="concurrencySelect" class="custom-select" style="min-width: 140px;" title="AI 동시 병렬 요청 수">
+                <option value="5" selected>⚡ 5개 동시 병렬</option>
+                <option value="8">🚀 8개 동시 병렬</option>
+                <option value="10">🔥 10개 동시 병렬</option>
+                <option value="3">3개 동시 병렬</option>
+              </select>
+
+              <button id="saveApiKeyBtn" class="btn btn-secondary" style="font-size: 0.82rem;">
+                <i class="ri-save-line"></i> 저장
+              </button>
+
+              <!-- API Key Real Test Button -->
+              <button id="testApiKeyBtn" class="btn btn-primary" style="font-size: 0.82rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                <i class="ri-wifi-line"></i> 연결 테스트
+              </button>
+            </div>
+
+            <!-- Test Result Box -->
+            <div id="apiTestResultBox" class="api-test-result-box" style="display: none;">
+              <div id="apiTestResultContent"></div>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div style="margin-top: 1rem;">
+            <div class="ai-status-summary-bar" style="margin-bottom: 0.4rem;">
+              <span id="aiProgressText">3분할 파이프라인 준비 완료</span>
+              <span id="aiStatsSummary">대기열 총 0건</span>
+            </div>
+            <div class="ai-progress-wrapper">
+              <div id="aiProgressBar" class="ai-progress-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Review Tabs and Filter Controls (검토완료 탭 포함) -->
+        <section class="review-tabs-row">
+          <div class="review-tabs">
+            <button class="review-tab-btn active" data-tab="all">
+              <i class="ri-list-unordered"></i> 전체 대기열 <span class="badge-num" id="badgeCountAll">0</span>
             </button>
-
-            <!-- API Key Real Test Button -->
-            <button id="testApiKeyBtn" class="btn btn-primary" style="font-size: 0.82rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
-              <i class="ri-wifi-line"></i> 연결 테스트
+            <button class="review-tab-btn" data-tab="published" style="color: #38bdf8;">
+              <i class="ri-checkbox-circle-fill"></i> 검토완료 (DB발행됨) <span class="badge-num" id="badgeCountPublished">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="reported" style="color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1);">
+              <i class="ri-alarm-warning-fill"></i> 다수 신고 기사 (10회+) <span class="badge-num" id="badgeCountReported" style="background: #ef4444; color: #fff;">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="submitted" style="color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.1);">
+              <i class="ri-mail-send-fill"></i> 시민 제보 기사 <span class="badge-num" id="badgeCountSubmitted" style="background: #a855f7; color: #fff;">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="approved" style="color: #10b981;">
+              <i class="ri-check-double-line"></i> 승인 (발행대기) <span class="badge-num" id="badgeCountApproved">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="review" style="color: #f59e0b;">
+              <i class="ri-error-warning-fill"></i> AI 검토 대상 <span class="badge-num" id="badgeCountReview">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="rejected" style="color: #ef4444;">
+              <i class="ri-close-circle-fill"></i> 배제 / 탈락 <span class="badge-num" id="badgeCountRejected">0</span>
+            </button>
+            <button class="review-tab-btn" data-tab="pending">
+              <i class="ri-time-line"></i> 미분석 <span class="badge-num" id="badgeCountPending">0</span>
             </button>
           </div>
 
-          <!-- Test Result Box -->
-          <div id="apiTestResultBox" class="api-test-result-box" style="display: none;">
-            <div id="apiTestResultContent"></div>
+          <div style="font-size: 0.82rem; color: var(--text-muted);">
+            * 각 기사 우측의 [승인/반려] 버튼을 눌러 판정 결과를 언제든지 수동으로 변경할 수 있습니다.
           </div>
-        </div>
+        </section>
 
-        <!-- Progress Bar -->
-        <div style="margin-top: 1rem;">
-          <div class="ai-status-summary-bar" style="margin-bottom: 0.4rem;">
-            <span id="aiProgressText">3분할 파이프라인 준비 완료</span>
-            <span id="aiStatsSummary">대기열 총 0건</span>
+        <!-- Review Items Table Card -->
+        <section class="review-table-card">
+          <div id="reviewItemsList">
+            <!-- Dynamically injected via admin.js -->
           </div>
-          <div class="ai-progress-wrapper">
-            <div id="aiProgressBar" class="ai-progress-bar"></div>
+        </section>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- VIEW 2: Visitor Traffic & Analytics Dashboard                        -->
+      <!-- =================================================================== -->
+      <div id="analyticsDashboardView" class="admin-view" style="display: none;">
+        
+        <!-- Analytics Header & Control Toolbar -->
+        <section class="analytics-control-panel">
+          <div class="analytics-header-row">
+            <div class="analytics-title-wrap">
+              <div class="analytics-pulse-icon">
+                <i class="ri-line-chart-fill"></i>
+              </div>
+              <div>
+                <h2 style="font-size: 1.25rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.2rem;">
+                  아카이브 방문자 통계 분석
+                  <span class="analytics-live-tag"><span class="pulse-dot"></span> REALTIME TRACKING</span>
+                </h2>
+                <p style="font-size: 0.82rem; color: var(--text-secondary);">
+                  실시간 방문자 수, 페이지뷰, 시간대별 집중도, 유입 경로, 기기 점유율 및 인기 검색어를 정밀 분석합니다.
+                </p>
+              </div>
+            </div>
+
+            <!-- Toolbar Actions & Period Filter -->
+            <div class="analytics-toolbar-actions">
+              <!-- Period Filter Buttons -->
+              <div class="analytics-period-group">
+                <button type="button" class="analytics-period-btn" data-period="today">오늘 (Today)</button>
+                <button type="button" class="analytics-period-btn active" data-period="7d">최근 7일</button>
+                <button type="button" class="analytics-period-btn" data-period="30d">최근 30일</button>
+                <button type="button" class="analytics-period-btn" data-period="all">전체 누적</button>
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                <button id="refreshAnalyticsBtn" class="btn btn-secondary" title="통계 새로고침" style="font-size: 0.82rem;">
+                  <i class="ri-refresh-line"></i> 새로고침
+                </button>
+                <button id="exportCsvAnalyticsBtn" class="btn btn-secondary" title="CSV 통계 내보내기" style="font-size: 0.82rem; border-color: rgba(16, 185, 129, 0.4); color: #10b981;">
+                  <i class="ri-file-excel-2-line"></i> CSV 다운로드
+                </button>
+                <button id="simulateTrafficBtn" class="btn btn-secondary" title="실시간 트래픽 테스트 시뮬레이션" style="font-size: 0.82rem; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                  <i class="ri-flashlight-line"></i> 테스트 방문 생성
+                </button>
+                <button id="resetAnalyticsBtn" class="btn btn-secondary" title="통계 데이터 초기화" style="font-size: 0.82rem; color: #f87171;">
+                  <i class="ri-delete-bin-line"></i> 초기화
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- 3. Review Tabs and Filter Controls (검토완료 탭 포함) -->
-      <section class="review-tabs-row">
-        <div class="review-tabs">
-          <button class="review-tab-btn active" data-tab="all">
-            <i class="ri-list-unordered"></i> 전체 대기열 <span class="badge-num" id="badgeCountAll">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="published" style="color: #38bdf8;">
-            <i class="ri-checkbox-circle-fill"></i> 검토완료 (DB발행됨) <span class="badge-num" id="badgeCountPublished">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="reported" style="color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1);">
-            <i class="ri-alarm-warning-fill"></i> 다수 신고 기사 (10회+) <span class="badge-num" id="badgeCountReported" style="background: #ef4444; color: #fff;">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="submitted" style="color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.1);">
-            <i class="ri-mail-send-fill"></i> 시민 제보 기사 <span class="badge-num" id="badgeCountSubmitted" style="background: #a855f7; color: #fff;">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="approved" style="color: #10b981;">
-            <i class="ri-check-double-line"></i> 승인 (발행대기) <span class="badge-num" id="badgeCountApproved">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="review" style="color: #f59e0b;">
-            <i class="ri-error-warning-fill"></i> AI 검토 대상 <span class="badge-num" id="badgeCountReview">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="rejected" style="color: #ef4444;">
-            <i class="ri-close-circle-fill"></i> 배제 / 탈락 <span class="badge-num" id="badgeCountRejected">0</span>
-          </button>
-          <button class="review-tab-btn" data-tab="pending">
-            <i class="ri-time-line"></i> 미분석 <span class="badge-num" id="badgeCountPending">0</span>
-          </button>
-        </div>
+        <!-- KPI Summary Cards (4-Grid) -->
+        <section class="analytics-kpi-grid">
+          <!-- Card 1: Total Pageviews -->
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon-wrap" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+              <i class="ri-eye-fill"></i>
+            </div>
+            <div class="kpi-info">
+              <span class="kpi-label">총 페이지뷰 (PV)</span>
+              <div class="kpi-value" id="kpiTotalPv">0</div>
+              <div class="kpi-sub" id="kpiTotalPvSub">선택 기간 총 조회수</div>
+            </div>
+          </div>
 
-        <div style="font-size: 0.82rem; color: var(--text-muted);">
-          * 각 기사 우측의 [승인/반려] 버튼을 눌러 판정 결과를 언제든지 수동으로 변경할 수 있습니다.
-        </div>
-      </section>
+          <!-- Card 2: Unique Visitors -->
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon-wrap" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">
+              <i class="ri-user-star-fill"></i>
+            </div>
+            <div class="kpi-info">
+              <span class="kpi-label">순 방문자수 (UV)</span>
+              <div class="kpi-value" id="kpiTotalUv">0</div>
+              <div class="kpi-sub" id="kpiTotalUvSub">고유 식별 방문자</div>
+            </div>
+          </div>
 
-      <!-- Review Items Table Card -->
-      <section class="review-table-card">
-        <div id="reviewItemsList">
-          <!-- Dynamically injected via admin.js -->
-        </div>
-      </section>
+          <!-- Card 3: PV per UV & Avg Stay Time -->
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+              <i class="ri-time-fill"></i>
+            </div>
+            <div class="kpi-info">
+              <span class="kpi-label">1인당 PV / 체류시간</span>
+              <div class="kpi-value" id="kpiPvPerUv">0.0</div>
+              <div class="kpi-sub" id="kpiDurationSub">평균 체류 시간: 약 3분 12초</div>
+            </div>
+          </div>
+
+          <!-- Card 4: Total Event Interactions -->
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon-wrap" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+              <i class="ri-cursor-fill"></i>
+            </div>
+            <div class="kpi-info">
+              <span class="kpi-label">총 사용자 인터랙션</span>
+              <div class="kpi-value" id="kpiTotalEvents">0</div>
+              <div class="kpi-sub" id="kpiEventsSub">사건 열람 · 검색 · 필터링</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chart Grid 1: Daily Trend & Hourly Pattern -->
+        <section class="analytics-charts-grid">
+          <!-- Chart 1: Daily Trend -->
+          <div class="analytics-chart-card">
+            <div class="chart-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-line-chart-line" style="color: #38bdf8; font-size: 1.15rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #f1f5f9;">일자별 방문자 & 페이지뷰 추이</h3>
+              </div>
+              <span class="chart-legend-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">PV / UV 복합 분석</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 280px; position: relative;">
+              <canvas id="analyticsDailyTrendChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Hourly Distribution -->
+          <div class="analytics-chart-card">
+            <div class="chart-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-time-zone-line" style="color: #f59e0b; font-size: 1.15rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #f1f5f9;">시간대별(00시~23시) 방문 집중도</h3>
+              </div>
+              <span class="chart-legend-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">피크 타임 분석</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 280px; position: relative;">
+              <canvas id="analyticsHourlyChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chart Grid 2: Traffic Channels & Platform Breakdown -->
+        <section class="analytics-charts-grid">
+          <!-- Chart 3: Referrers / Traffic Channels -->
+          <div class="analytics-chart-card">
+            <div class="chart-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-compass-3-line" style="color: #8b5cf6; font-size: 1.15rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #f1f5f9;">유입 경로별 점유율 (Traffic Acquisition)</h3>
+              </div>
+              <span class="chart-legend-badge" style="background: rgba(139, 92, 246, 0.1); color: #a78bfa;">포털 · 커뮤니티 · 직접</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 260px; position: relative;">
+              <canvas id="analyticsReferrerChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 4: Device & OS Breakdown -->
+          <div class="analytics-chart-card">
+            <div class="chart-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-smartphone-line" style="color: #10b981; font-size: 1.15rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #f1f5f9;">접속 기기 & 플랫폼 점유율</h3>
+              </div>
+              <span class="chart-legend-badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399;">Mobile vs Desktop</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 260px; position: relative;">
+              <canvas id="analyticsDeviceChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rankings Grid: Top Articles & Top Search Queries -->
+        <section class="analytics-rankings-grid">
+          <!-- Ranking 1: Top Viewed Articles -->
+          <div class="ranking-card">
+            <div class="ranking-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-fire-fill" style="color: #ef4444; font-size: 1.2rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #f87171;">가장 많이 조회된 인기 사건 TOP 10</h3>
+              </div>
+              <span style="font-size: 0.76rem; color: var(--text-muted);">상세 모달 열람 기준</span>
+            </div>
+            <div id="analyticsTopArticlesList" class="ranking-items-list">
+              <!-- Dynamically populated via admin.js -->
+            </div>
+          </div>
+
+          <!-- Ranking 2: Top Search Queries -->
+          <div class="ranking-card">
+            <div class="ranking-card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ri-search-eye-line" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #38bdf8;">가장 많이 검색된 키워드 & 필터 TOP 10</h3>
+              </div>
+              <span style="font-size: 0.76rem; color: var(--text-muted);">실시간 검색어 집계</span>
+            </div>
+            <div id="analyticsTopSearchesList" class="ranking-items-list">
+              <!-- Dynamically populated via admin.js -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Realtime Visitor Activity Feed (최근 접속자 로그 테이블) -->
+        <section class="analytics-log-section">
+          <div class="log-section-header">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <div class="log-pulse-dot"></div>
+              <h3 style="font-size: 1rem; font-weight: 800; color: #f8fafc;">
+                실시간 최근 방문자 활동 로그
+              </h3>
+              <span id="analyticsLogTotalCountBadge" class="log-count-badge">총 0건</span>
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">
+              최근 발생한 접속 및 사건 열람, 검색 활동을 실시간으로 추적합니다.
+            </span>
+          </div>
+
+          <div class="analytics-table-wrapper">
+            <table class="analytics-log-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px;">접속 일시</th>
+                  <th style="width: 120px;">접속 페이지</th>
+                  <th style="width: 140px;">기기 / OS</th>
+                  <th style="width: 130px;">브라우저</th>
+                  <th style="width: 170px;">유입 경로</th>
+                  <th>사용자 활동 및 열람 사건</th>
+                  <th style="width: 100px; text-align: right;">체류 시간</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsLogTableBody">
+                <!-- Dynamically populated via admin.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Log Pagination -->
+          <div class="analytics-pagination-row">
+            <div id="analyticsLogPaginationInfo" style="font-size: 0.8rem; color: var(--text-muted);">
+              1 - 20 / 총 0건
+            </div>
+            <div class="pagination-controls">
+              <button type="button" id="analyticsLogPrevBtn" class="btn btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+                <i class="ri-arrow-left-s-line"></i> 이전
+              </button>
+              <span id="analyticsLogCurrentPageSpan" style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">1</span>
+              <button type="button" id="analyticsLogNextBtn" class="btn btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+                다음 <i class="ri-arrow-right-s-line"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
 
     </main>
 
   </div>
 
   <!-- Scripts -->
+  <script src="js/tracker.js"></script>
   <script src="js/admin_queue.js"></script>
   <script src="js/admin.js"></script>
 </body>

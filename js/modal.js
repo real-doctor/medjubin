@@ -99,6 +99,9 @@ const ModalModule = (() => {
         localStorage.setItem('archive_user_submissions', JSON.stringify(submissions));
 
         showToast('기사 제보가 성공적으로 등록되었습니다. [제보 기사] 분류에서 확인하실 수 있습니다.');
+        if (typeof Tracker !== 'undefined') {
+          Tracker.logEvent('submit_news', { title: titleVal, media: mediaName });
+        }
         submitForm.reset();
         closeAllModals();
 
@@ -111,6 +114,17 @@ const ModalModule = (() => {
 
   function openDetailModal(item) {
     if (!detailModal) return;
+
+    // Track article view event
+    if (typeof Tracker !== 'undefined') {
+      Tracker.logEvent('view_article', {
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        region: item.region,
+        specialty: item.specialty
+      });
+    }
 
     // Badges & Header
     const catMeta = CATEGORY_META[item.category] || { label: item.categoryName, color: '#3b82f6' };
@@ -217,6 +231,10 @@ const ModalModule = (() => {
           reports[item.id] = newCount;
           localStorage.setItem('archive_report_counts', JSON.stringify(reports));
           localStorage.setItem(hasVotedKey, 'true');
+
+          if (typeof Tracker !== 'undefined') {
+            Tracker.logEvent('report_not_doctor', { id: item.id, title: item.title });
+          }
 
           if (reportCountSpan) reportCountSpan.textContent = newCount;
 

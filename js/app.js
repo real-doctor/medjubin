@@ -155,9 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(() => {
           FilterModule.setFilter('search', e.target.value);
+          if (typeof Tracker !== 'undefined' && e.target.value && e.target.value.trim().length >= 2) {
+            Tracker.logEvent('search', { query: e.target.value.trim() });
+          }
           currentPage = 1;
           applyFiltersAndRender();
-        }, 200);
+        }, 250);
       });
     }
 
@@ -168,6 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.add('active');
         const cat = btn.getAttribute('data-category');
         FilterModule.setFilter('category', cat);
+        if (typeof Tracker !== 'undefined') {
+          Tracker.logEvent('filter', { type: 'category', value: cat });
+        }
         currentPage = 1;
         applyFiltersAndRender();
       });
@@ -179,6 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
       regionSelect.addEventListener('change', (e) => {
         FilterModule.setFilter('region', e.target.value);
         MapModule.setRegion(e.target.value === 'all' ? null : e.target.value);
+        if (typeof Tracker !== 'undefined' && e.target.value !== 'all') {
+          Tracker.logEvent('filter', { type: 'region', value: e.target.value });
+        }
         currentPage = 1;
         applyFiltersAndRender();
       });
