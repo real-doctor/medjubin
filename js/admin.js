@@ -189,17 +189,39 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 대기열 리셋 버튼
+    // 대기열 및 DB 관리 버튼들
     const resetQueueBtn = document.getElementById('resetQueueBtn');
     if (resetQueueBtn) {
       resetQueueBtn.addEventListener('click', () => {
-        if (confirm('대기열을 초기 수집 원본(2,019건) 상태로 리셋하시겠습니까?')) {
-          localStorage.removeItem('admin_dynamic_queue');
-          rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
-          updateQueueStats();
-          renderReviewList();
-          alert('대기열이 초기화되었습니다.');
-        }
+        window.clearAllQueue();
+      });
+    }
+
+    const clearAllQueueBtn = document.getElementById('clearAllQueueBtn');
+    if (clearAllQueueBtn) {
+      clearAllQueueBtn.addEventListener('click', () => {
+        window.clearAllQueue();
+      });
+    }
+
+    const clearPendingAndRejectedBtn = document.getElementById('clearPendingAndRejectedBtn');
+    if (clearPendingAndRejectedBtn) {
+      clearPendingAndRejectedBtn.addEventListener('click', () => {
+        window.clearPendingAndRejected();
+      });
+    }
+
+    const clearAllPublishedBtn = document.getElementById('clearAllPublishedBtn');
+    if (clearAllPublishedBtn) {
+      clearAllPublishedBtn.addEventListener('click', () => {
+        window.clearAllPublished();
+      });
+    }
+
+    const restoreDefaultQueueBtn = document.getElementById('restoreDefaultQueueBtn');
+    if (restoreDefaultQueueBtn) {
+      restoreDefaultQueueBtn.addEventListener('click', () => {
+        window.restoreDefaultQueue();
       });
     }
 
@@ -1410,6 +1432,9 @@ const REGIONS_LIST = [
             <button class="btn-reject" onclick="manualStatusOverride('${item.id}', 'rejected')" title="수동 반려">
               <i class="ri-close-line"></i> 반려
             </button>
+            <button class="btn btn-secondary" onclick="deleteSingleArticle('${item.id}')" style="color: #f87171; border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.06); padding: 0.35rem 0.6rem; font-size: 0.76rem;" title="${isPublished ? 'DB 및 메인 페이지에서 이 기사 완전 삭제' : '대기열에서 이 기사 삭제'}">
+              <i class="ri-delete-bin-line"></i> ${isPublished ? 'DB삭제' : '삭제'}
+            </button>
             <a href="${item.link}" target="_blank" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.78rem;" title="기사 원문 보기">
               <i class="ri-external-link-line"></i>
             </a>
@@ -1420,6 +1445,132 @@ const REGIONS_LIST = [
 
     container.innerHTML = html;
   }
+
+  // 1. Single Article Deletion (개별 기사 대기열 또는 DB 영구 삭제)
+  window.deleteSingleArticle = (id) => {
+    const idx = rawQueue.findIndex(d => d.id === id);
+    if (idx === -1) return;
+    const item = rawQueue[idx];
+    const isPublished = item.isPublished || item.aiStatus === 'published';
+
+    const confirmMsg = isPublished
+      ? `🚨 [검토완료 기사 DB 삭제 안내]\n\n이 기사는 DB에 발행되어 메인 페이지에 노출 중인 사건입니다.\n정말로 DB 및 메인 목록에서 완전히 삭제하시겠습니까?\n\n- 제목: ${item.title}\n\n* 삭제 후 메인 아카이브 및 통계에서 즉시 제외됩니다.`
+      : `이 기사를 대기열 목록에서 삭제하시겠습니까?\n\n- 제목: ${item.title}`;
+
+    if (confirm(confirmMsg)) {
+      // 1. Remove from rawQueue
+      rawQueue.splice(idx, 1);
+      localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+
+      // 2. If it was published, record in archive_deleted_article_ids and remove from published arrays
+      if (isPublished || item.id || item.link) {
+        let deletedIds = [];
+        try {
+          deletedIds = JSON.parse(localStorage.getItem('archive_deleted_article_ids') || '[]');
+        } catch(e) {}
+        if (item.id && !deletedIds.includes(item.id)) deletedIds.push(item.id);
+        if (item.link && !deletedIds.includes(item.link)) deletedIds.push(item.link);
+        localStorage.setItem('archive_deleted_article_ids', JSON.stringify(deletedIds));
+
+        // Remove from archive_published_data
+        let publishedData = [];
+        try {
+          publishedData = JSON.parse(localStorage.getItem('archive_published_data') || '[]');
+          publishedData = publishedData.filter(d => d && d.id !== item.id && d.link !== item.link);
+          localStorage.setItem('archive_published_data', JSON.stringify(publishedData));
+        } catch(e) {}
+
+        // Remove from archive_published_urls
+        let publishedUrls = [];
+        try {
+          publishedUrls = JSON.parse(localStorage.getItem('archive_published_urls') || '[]');
+          publishedUrls = publishedUrls.filter(u => u !== item.link && u !== item.id);
+          localStorage.setItem('archive_published_urls', JSON.stringify(publishedUrls));
+        } catch(e) {}
+      }
+
+      updateQueueStats();
+      renderReviewList();
+      if (window.refreshArchiveFeed) window.refreshArchiveFeed();
+
+      if (isPublished) {
+        alert(`✅ 기사가 DB 및 메인 페이지에서 삭제되었습니다.\n\n* Git-as-a-DB를 사용하시는 경우, 상단의 [GitHub DB 즉시 커밋 & 발행] 버튼을 누르면 원격 저장소 data.js 에도 삭제 상태가 최종 동기화됩니다.`);
+      }
+    }
+  };
+
+  // 2. Clear entire queue (대기열 전체 비우기 0건)
+  window.clearAllQueue = () => {
+    if (confirm(`🚨 [대기열 전체 비우기]\n\n현재 대기열의 모든 기사(${rawQueue.length}건)를 완전히 삭제하여 0건으로 만드시겠습니까?\n\n* 새로운 날짜 기간의 뉴스를 깔끔하게 다시 크롤링하고자 할 때 권장합니다.`)) {
+      rawQueue = [];
+      localStorage.setItem('admin_dynamic_queue', '[]');
+      updateQueueStats();
+      renderReviewList();
+      alert('대기열이 0건으로 완전히 비워졌습니다. 이제 새로운 날짜 범위로 크롤링을 시작하세요!');
+    }
+  };
+
+  // 3. Clear only pending and rejected items (미분석/배제 기사만 삭제)
+  window.clearPendingAndRejected = () => {
+    const beforeCount = rawQueue.length;
+    const keptItems = rawQueue.filter(d => d.aiStatus === 'approved' || d.aiStatus === 'published' || d.aiStatus === 'review');
+    const removedCount = beforeCount - keptItems.length;
+
+    if (removedCount === 0) {
+      alert('삭제할 미분석(pending) 또는 배제(rejected) 기사가 없습니다.');
+      return;
+    }
+
+    if (confirm(`미분석 및 배제(탈락) 기사 총 ${removedCount}건을 일괄 삭제하시겠습니까?\n(승인, 검토대상, 검토완료 기사 ${keptItems.length}건은 안전하게 보존됩니다.)`)) {
+      rawQueue = keptItems;
+      localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+      updateQueueStats();
+      renderReviewList();
+      alert(`미분석 및 배제 기사 ${removedCount}건이 정리되었습니다. (남은 대기열: ${rawQueue.length}건)`);
+    }
+  };
+
+  // 4. Clear all published items from DB & Main Page (검토완료 기사 전체 삭제)
+  window.clearAllPublished = () => {
+    const publishedItems = rawQueue.filter(d => d.isPublished || d.aiStatus === 'published');
+    
+    if (confirm(`⚠️ [검토완료(DB) 기사 전체 삭제]\n\nDB에 발행되어 메인 페이지에 노출 중인 기사들을 모두 삭제하시겠습니까?\n\n* 삭제 후 메인 아카이브에서도 즉시 제외됩니다.`)) {
+      let deletedIds = [];
+      try {
+        deletedIds = JSON.parse(localStorage.getItem('archive_deleted_article_ids') || '[]');
+      } catch(e) {}
+
+      publishedItems.forEach(item => {
+        if (item.id && !deletedIds.includes(item.id)) deletedIds.push(item.id);
+        if (item.link && !deletedIds.includes(item.link)) deletedIds.push(item.link);
+      });
+      localStorage.setItem('archive_deleted_article_ids', JSON.stringify(deletedIds));
+
+      localStorage.removeItem('archive_published_data');
+      localStorage.removeItem('archive_published_urls');
+
+      // Remove published items from queue
+      rawQueue = rawQueue.filter(d => !d.isPublished && d.aiStatus !== 'published');
+      localStorage.setItem('admin_dynamic_queue', JSON.stringify(rawQueue));
+
+      updateQueueStats();
+      renderReviewList();
+      if (window.refreshArchiveFeed) window.refreshArchiveFeed();
+
+      alert(`검토완료 기사가 DB 및 메인 페이지에서 모두 삭제되었습니다.\n(Git-as-a-DB 사용 시 'GitHub DB 즉시 커밋 & 발행'으로 원격 저장소에 동기화할 수 있습니다.)`);
+    }
+  };
+
+  // 5. Restore default initial queue (초기 원본 대기열 복구)
+  window.restoreDefaultQueue = () => {
+    if (confirm('대기열을 초기 수집 원본(2,019건) 상태로 복원하시겠습니까?')) {
+      localStorage.removeItem('admin_dynamic_queue');
+      rawQueue = (typeof ADMIN_RAW_QUEUE !== 'undefined') ? [...ADMIN_RAW_QUEUE] : [];
+      updateQueueStats();
+      renderReviewList();
+      alert('초기 원본 대기열로 복원되었습니다.');
+    }
+  };
 
   // Single Article Report Count Reset (개별 기사 신고 카운트 0으로 리셋)
   window.resetSingleArticleReport = (id) => {

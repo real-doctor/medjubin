@@ -351,6 +351,34 @@
           </div>
         </section>
 
+        <!-- Queue & DB Bulk Management Toolbar (대기열 및 발행 데이터 일괄 관리 도구 바) -->
+        <section class="queue-action-toolbar" style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 0.9rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+              <i class="ri-folder-reduce-fill"></i>
+            </div>
+            <div>
+              <span style="font-size: 0.88rem; font-weight: 800; color: #e0f2fe;">대기열 & DB 발행 기사 관리 도구</span>
+              <p style="font-size: 0.74rem; color: var(--text-muted); margin: 0;">크롤링 대기열 비우기 및 메인 페이지 발행 기사 일괄/개별 삭제</p>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+            <button type="button" id="clearAllQueueBtn" class="btn btn-secondary" style="font-size: 0.78rem; color: #f87171; border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.08);" title="대기열의 모든 기사를 완전히 비워 0건으로 만듭니다 (새로운 크롤링 전 추천)">
+              <i class="ri-delete-bin-7-line"></i> 대기열 전체 비우기 (0건)
+            </button>
+            <button type="button" id="clearPendingAndRejectedBtn" class="btn btn-secondary" style="font-size: 0.78rem; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08);" title="미분석 기사 및 탈락(배제) 기사만 일괄 삭제">
+              <i class="ri-filter-off-line"></i> 미분석/배제 기사만 정리
+            </button>
+            <button type="button" id="clearAllPublishedBtn" class="btn btn-secondary" style="font-size: 0.78rem; color: #f43f5e; border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.08);" title="검토완료되어 메인 페이지에 발행된 기사들을 DB 및 메인에서 전체 삭제">
+              <i class="ri-eraser-fill"></i> 검토완료(DB) 기사 전체 삭제
+            </button>
+            <button type="button" id="restoreDefaultQueueBtn" class="btn btn-secondary" style="font-size: 0.78rem; color: #94a3b8;" title="초기 기본 원본 대기열(2,019건)로 복구">
+              <i class="ri-history-line"></i> 초기 원본 대기열 복구
+            </button>
+          </div>
+        </section>
+
         <!-- 3. Review Tabs and Filter Controls (검토완료 탭 포함) -->
         <section class="review-tabs-row">
           <div class="review-tabs">

@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 관리자가 DB에서 삭제한 기사 필터링
+    const deletedIds = new Set(JSON.parse(localStorage.getItem('archive_deleted_article_ids') || '[]'));
+    if (deletedIds.size > 0) {
+      baseData = baseData.filter(item => item && !deletedIds.has(item.id) && !deletedIds.has(item.link));
+    }
+
     return baseData;
   }
 
