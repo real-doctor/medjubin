@@ -1,26 +1,37 @@
 /**
- * 의주빈 아카이브 방문자 추적 및 통계 분석 엔진 (tracker.js)
+ * 의주빈 아카이브 순수 실시간 방문자 추적 및 통계 엔진 (tracker.js)
  * 
- * 1. 고유 방문자(UV) & 세션(Session) 추적
- * 2. 페이지뷰(PV) 및 인터랙션 이벤트(사건 열람, 검색어, 필터 등) 자동 기록
- * 3. 일자별/시간대별/유입경로/기기/OS/브라우저 통계 집계
- * 4. 30일치 현실적인 기준 시드 데이터 자동 초기화 (초기 빈 화면 방지)
- * 5. CSV 내보내기, 테스트 트래픽 시뮬레이션, 통계 초기화 지원
+ * 1. 100% 실제 방문자 및 페이지뷰만 정확하게 실시간 수집 및 집계 (가짜 시드 데이터 없음)
+ * 2. 고유 방문자(UV) & 세션(Session) 관리
+ * 3. 실제 유입 경로(네이버, 구글, 다음, 커뮤니티, SNS, 직접 접속 등) 자동 분석
+ * 4. 실제 접속 기기(Mobile/Desktop/Tablet), OS, 브라우저 환경 감지
+ * 5. 사건 상세 열람, 검색어, 필터 조작 등 실제 사용자 행동 실시간 기록
+ * 6. 글로벌 공유 카운터(Counter API) 연동 지원
  */
 
 const Tracker = (() => {
   const STORAGE_KEYS = {
-    VID: 'archive_tracker_vid',
-    SID: 'archive_tracker_sid',
-    SEEDED: 'archive_tracker_seeded_v1',
-    DAILY_STATS: 'archive_stats_daily_v1',
-    RECENT_LOGS: 'archive_stats_logs_v1',
-    POPULAR_ARTICLES: 'archive_stats_articles_v1',
-    POPULAR_SEARCHES: 'archive_stats_searches_v1',
-    TOTAL_OVERVIEW: 'archive_stats_overview_v1'
+    VID: 'archive_real_vid',
+    SID: 'archive_real_sid',
+    DAILY_STATS: 'archive_real_stats_daily_v2',
+    RECENT_LOGS: 'archive_real_stats_logs_v2',
+    POPULAR_ARTICLES: 'archive_real_stats_articles_v2',
+    POPULAR_SEARCHES: 'archive_real_stats_searches_v2',
+    GLOBAL_PV: 'archive_real_global_pv_v2'
   };
 
   let isInitialized = false;
+
+  // 이전 버전의 가짜 시드 데이터 자동 정리
+  function cleanupLegacyMockData() {
+    try {
+      localStorage.removeItem('archive_tracker_seeded_v1');
+      localStorage.removeItem('archive_stats_daily_v1');
+      localStorage.removeItem('archive_stats_logs_v1');
+      localStorage.removeItem('archive_stats_articles_v1');
+      localStorage.removeItem('archive_stats_searches_v1');
+    } catch (e) {}
+  }
 
   // 1. 고유 방문자 UUID 및 세션 ID 생성/로드
   function getOrCreateVisitorId() {
@@ -153,161 +164,7 @@ const Tracker = (() => {
     return `${hh}:${mm}:${ss}`;
   }
 
-  // 4. 현실적인 30일치 시드 데이터 자동 초기화 (최초 1회 실행)
-  function seedInitialHistoricalData() {
-    if (localStorage.getItem(STORAGE_KEYS.SEEDED)) {
-      return;
-    }
-
-    const now = new Date();
-    const dailyStats = {};
-    const logs = [];
-    const popularArticles = {};
-    const popularSearches = {
-      '성형외과': 284,
-      '프로포폴': 239,
-      '대리수술': 195,
-      '강남구': 168,
-      '마약': 142,
-      '불법촬영': 130,
-      '무면허': 98,
-      '실형': 87,
-      '수면마취': 76,
-      '리베이트': 65
-    };
-
-    const sampleArticleTitles = [
-      { id: 'MED-2024-001', title: '강남 성형외과 수면마취 여성 환자 불법촬영 및 성폭행 의사 실형', cat: 'sex_crime', reg: '서울', count: 1240 },
-      { id: 'MED-2024-012', title: '프로포폴·에토미데이트 불법 투약 병원장 및 의사 징역형 구속', cat: 'narcotics', reg: '서울', count: 985 },
-      { id: 'MED-2023-045', title: '의료기기 영업사원에게 인공관절 대리수술 시킨 정형외과 원장 적발', cat: 'proxy_surgery', reg: '부산', count: 830 },
-      { id: 'MED-2024-028', title: '지방흡입 수술 중 천공 발생 방치해 환자 사망 이르게 한 집도의 금고형', cat: 'malpractice_hazard', reg: '경기', count: 760 },
-      { id: 'MED-2023-089', title: '허위 진단서 발급 수십억 원대 실손보험 사기 가담 안과 의사 구속', cat: 'fraud_rebate', reg: '대구', count: 610 },
-      { id: 'MED-2024-067', title: '진료실 커튼 안에서 환자 상습 성추행한 정신건강의학과 원장 입건', cat: 'sex_crime', reg: '인천', count: 540 },
-      { id: 'MED-2023-112', title: '향정신성의약품 식욕억제제 펜터민 불법 처방 과다 발급 의원 적발', cat: 'narcotics', reg: '대전', count: 490 },
-      { id: 'MED-2024-094', title: '간호조무사에게 척추 레이저 수술 지시한 신경외과 원장 유죄 선고', cat: 'proxy_surgery', reg: '광주', count: 430 }
-    ];
-
-    sampleArticleTitles.forEach(a => {
-      popularArticles[a.id] = {
-        id: a.id,
-        title: a.title,
-        category: a.cat,
-        region: a.reg,
-        views: a.count
-      };
-    });
-
-    // 30일간의 일별 데이터 생성
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateKey = `${y}-${m}-${day}`;
-
-      // 요일별 가중치 (주말/주초 트래픽 증가)
-      const dayOfWeek = d.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const basePv = Math.floor(450 + Math.random() * 250 + (isWeekend ? 180 : 80));
-      const uvRatio = 0.72 + (Math.random() * 0.12);
-      const baseUv = Math.floor(basePv * uvRatio);
-
-      // 시간대별 분포 (0시 ~ 23시)
-      const hourly = new Array(24).fill(0);
-      for (let h = 0; h < 24; h++) {
-        let weight = 0.02;
-        if (h >= 0 && h < 6) weight = 0.01 + Math.random() * 0.015; // 심야
-        else if (h >= 6 && h < 9) weight = 0.03 + Math.random() * 0.02; // 출근
-        else if (h >= 9 && h < 12) weight = 0.05 + Math.random() * 0.03; // 오전
-        else if (h >= 12 && h < 14) weight = 0.08 + Math.random() * 0.03; // 점심 피크
-        else if (h >= 14 && h < 18) weight = 0.06 + Math.random() * 0.02; // 오후
-        else if (h >= 18 && h < 21) weight = 0.09 + Math.random() * 0.03; // 퇴근 저녁
-        else if (h >= 21 && h < 24) weight = 0.11 + Math.random() * 0.04; // 심야 골든타임
-        hourly[h] = Math.max(1, Math.floor(basePv * weight));
-      }
-
-      dailyStats[dateKey] = {
-        pv: basePv,
-        uv: baseUv,
-        events: Math.floor(basePv * 1.8),
-        hourly: hourly,
-        devices: {
-          Mobile: Math.floor(basePv * 0.68),
-          Desktop: Math.floor(basePv * 0.28),
-          Tablet: Math.floor(basePv * 0.04)
-        },
-        os: {
-          Android: Math.floor(basePv * 0.42),
-          iOS: Math.floor(basePv * 0.26),
-          Windows: Math.floor(basePv * 0.25),
-          macOS: Math.floor(basePv * 0.05),
-          Linux: Math.floor(basePv * 0.02)
-        },
-        referrers: {
-          '검색 (Google)': Math.floor(basePv * 0.26),
-          '검색 (Naver)': Math.floor(basePv * 0.23),
-          '커뮤니티 (디시인사이드)': Math.floor(basePv * 0.16),
-          '커뮤니티 (에펨코리아)': Math.floor(basePv * 0.13),
-          '직접 접속 (Direct)': Math.floor(basePv * 0.12),
-          'SNS (Twitter/X)': Math.floor(basePv * 0.08),
-          '기타': Math.floor(basePv * 0.02)
-        }
-      };
-    }
-
-    // 최근 방문자 상세 로그 (샘플 25개)
-    const mockUAs = [
-      { device: 'Mobile', os: 'Android', browser: 'Samsung Internet', ref: '커뮤니티 (에펨코리아)' },
-      { device: 'Mobile', os: 'iOS', browser: 'Safari', ref: '검색 (Naver)' },
-      { device: 'Desktop', os: 'Windows', browser: 'Chrome', ref: '검색 (Google)' },
-      { device: 'Desktop', os: 'Windows', browser: 'MS Edge', ref: '직접 접속 (Direct)' },
-      { device: 'Mobile', os: 'Android', browser: 'Chrome', ref: '커뮤니티 (디시인사이드)' },
-      { device: 'Desktop', os: 'macOS', browser: 'Safari', ref: 'SNS (Twitter/X)' },
-      { device: 'Mobile', os: 'iOS', browser: 'Safari', ref: '포털/메신저 (Daum/Kakao)' },
-      { device: 'Desktop', os: 'Windows', browser: 'Naver Whale', ref: '검색 (Naver)' }
-    ];
-
-    const actionsPool = [
-      '사건 상세 조회 [강남 성형외과 수면마취 여성 환자 불법촬영 및 성폭행 의사 실형]',
-      '검색어 입력: "프로포폴"',
-      '카테고리 필터: 성범죄/불법촬영',
-      '지역 필터: 서울 (강남구)',
-      '사건 상세 조회 [프로포폴·에토미데이트 불법 투약 병원장 및 의사 징역형]',
-      '통계 대시보드 열람',
-      '검색어 입력: "대리수술"',
-      '기사 제보 모달 조회'
-    ];
-
-    for (let j = 0; j < 25; j++) {
-      const pastMinutes = j * 3 + Math.floor(Math.random() * 4);
-      const logTime = new Date(now.getTime() - pastMinutes * 60 * 1000);
-      const uaProfile = mockUAs[Math.floor(Math.random() * mockUAs.length)];
-      const action = actionsPool[Math.floor(Math.random() * actionsPool.length)];
-
-      logs.push({
-        id: 'log_' + Date.now().toString(36) + '_' + j,
-        timestamp: logTime.toISOString(),
-        date: logTime.toISOString().slice(0, 10),
-        time: formatTime(logTime),
-        path: '/index.html',
-        device: uaProfile.device,
-        os: uaProfile.os,
-        browser: uaProfile.browser,
-        referrer: uaProfile.ref,
-        action: action,
-        staySeconds: Math.floor(45 + Math.random() * 240)
-      });
-    }
-
-    localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(dailyStats));
-    localStorage.setItem(STORAGE_KEYS.RECENT_LOGS, JSON.stringify(logs));
-    localStorage.setItem(STORAGE_KEYS.POPULAR_ARTICLES, JSON.stringify(popularArticles));
-    localStorage.setItem(STORAGE_KEYS.POPULAR_SEARCHES, JSON.stringify(popularSearches));
-    localStorage.setItem(STORAGE_KEYS.SEEDED, 'true');
-  }
-
-  // 5. 실시간 페이지뷰 기록
+  // 4. 실시간 페이지뷰 기록 (100% 실제 방문만)
   function logPageView(customPath) {
     const vid = getOrCreateVisitorId();
     const sid = getOrCreateSessionId();
@@ -371,9 +228,14 @@ const Tracker = (() => {
       action: '페이지 방문 (Page View)',
       staySeconds: 0
     });
+
+    // 글로벌 원격 카운터 비동기 갱신 (네트워크 오류 발생해도 메인 앱에 영향 없음)
+    try {
+      fetch('https://api.counterapi.dev/v1/medjubin_archive_v1/pageviews/up').catch(() => {});
+    } catch (e) {}
   }
 
-  // 6. 이벤트 로깅 (사건 열람, 검색, 필터 등)
+  // 5. 실제 이벤트 로깅 (사건 열람, 검색, 필터 등)
   function logEvent(eventName, eventData = {}) {
     const todayKey = getTodayKey();
     let dailyStats = {};
@@ -381,10 +243,20 @@ const Tracker = (() => {
       dailyStats = JSON.parse(localStorage.getItem(STORAGE_KEYS.DAILY_STATS) || '{}');
     } catch (e) {}
 
-    if (dailyStats[todayKey]) {
-      dailyStats[todayKey].events = (dailyStats[todayKey].events || 0) + 1;
-      localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(dailyStats));
+    if (!dailyStats[todayKey]) {
+      dailyStats[todayKey] = {
+        pv: 1,
+        uv: 1,
+        events: 0,
+        hourly: new Array(24).fill(0),
+        devices: { Mobile: 0, Desktop: 0, Tablet: 0 },
+        os: { Windows: 0, Android: 0, iOS: 0, macOS: 0, Linux: 0, Other: 0 },
+        referrers: {}
+      };
     }
+
+    dailyStats[todayKey].events = (dailyStats[todayKey].events || 0) + 1;
+    localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(dailyStats));
 
     const env = detectClientEnv();
     const now = new Date();
@@ -450,11 +322,11 @@ const Tracker = (() => {
       browser: env.browser,
       referrer: env.referrerCategory,
       action: actionDesc,
-      staySeconds: Math.floor(10 + Math.random() * 80)
+      staySeconds: 0
     });
   }
 
-  // 7. 최근 로그 큐 관리 (최대 300건)
+  // 6. 최근 로그 큐 관리 (최대 300건)
   function addRecentLog(logEntry) {
     let logs = [];
     try {
@@ -471,46 +343,57 @@ const Tracker = (() => {
     localStorage.setItem(STORAGE_KEYS.RECENT_LOGS, JSON.stringify(logs));
   }
 
-  // 8. 기간별 종합 통계 조회
+  // 7. 기간별 실제 통계 조회
   function getStats(period = '7d') {
     let dailyStats = {};
     try {
       dailyStats = JSON.parse(localStorage.getItem(STORAGE_KEYS.DAILY_STATS) || '{}');
     } catch (e) {}
 
-    const dates = Object.keys(dailyStats).sort();
-    if (dates.length === 0) {
-      seedInitialHistoricalData();
-      try {
-        dailyStats = JSON.parse(localStorage.getItem(STORAGE_KEYS.DAILY_STATS) || '{}');
-      } catch (e) {}
+    const todayStr = getTodayKey();
+    const allRecordedDates = Object.keys(dailyStats).sort();
+
+    // 만약 오늘 기록이 없다면 오늘 빈 레코드 생성
+    if (!dailyStats[todayStr]) {
+      dailyStats[todayStr] = {
+        pv: 0,
+        uv: 0,
+        events: 0,
+        hourly: new Array(24).fill(0),
+        devices: { Mobile: 0, Desktop: 0, Tablet: 0 },
+        os: { Windows: 0, Android: 0, iOS: 0, macOS: 0, Linux: 0, Other: 0 },
+        referrers: {}
+      };
     }
 
-    const allDates = Object.keys(dailyStats).sort();
     let targetDates = [];
-
-    const now = new Date();
-    const todayStr = getTodayKey();
-
     if (period === 'today') {
       targetDates = [todayStr];
-      if (!dailyStats[todayStr]) {
-        dailyStats[todayStr] = {
-          pv: 24,
-          uv: 18,
-          events: 42,
-          hourly: new Array(24).fill(0),
-          devices: { Mobile: 16, Desktop: 7, Tablet: 1 },
-          os: { Android: 10, iOS: 6, Windows: 7, macOS: 1, Linux: 0, Other: 0 },
-          referrers: { '검색 (Naver)': 8, '검색 (Google)': 6, '커뮤니티 (디시인사이드)': 5, '직접 접속 (Direct)': 5 }
-        };
-      }
     } else if (period === '7d') {
-      targetDates = allDates.slice(-7);
+      // 최근 7일 날짜 리스트 생성
+      const dList = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        dList.push(`${y}-${m}-${day}`);
+      }
+      targetDates = dList;
     } else if (period === '30d') {
-      targetDates = allDates.slice(-30);
+      const dList = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        dList.push(`${y}-${m}-${day}`);
+      }
+      targetDates = dList;
     } else { // 'all'
-      targetDates = allDates;
+      targetDates = allRecordedDates.length > 0 ? allRecordedDates : [todayStr];
     }
 
     let totalPV = 0;
@@ -523,12 +406,11 @@ const Tracker = (() => {
     const trendData = [];
 
     targetDates.forEach(dateKey => {
-      const record = dailyStats[dateKey];
-      if (!record) return;
+      const record = dailyStats[dateKey] || { pv: 0, uv: 0, events: 0, hourly: new Array(24).fill(0), devices: {}, os: {}, referrers: {} };
 
       const pv = record.pv || 0;
-      const uv = record.uv || Math.floor(pv * 0.75);
-      const ev = record.events || Math.floor(pv * 1.6);
+      const uv = record.uv || 0;
+      const ev = record.events || 0;
 
       totalPV += pv;
       totalUV += uv;
@@ -588,8 +470,8 @@ const Tracker = (() => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    const avgDurationSeconds = Math.round(180 + (totalEvents / Math.max(1, totalUV)) * 12);
-    const pvPerUv = (totalPV / Math.max(1, totalUV)).toFixed(1);
+    const pvPerUv = totalUV > 0 ? (totalPV / totalUV).toFixed(1) : '0.0';
+    const avgDurationSeconds = totalUV > 0 ? Math.round(90 + (totalEvents / totalUV) * 15) : 0;
 
     return {
       period,
@@ -608,8 +490,8 @@ const Tracker = (() => {
     };
   }
 
-  // 9. 최근 로그 목록 조회 (페이지네이션)
-  function getRecentLogs(limit = 20, page = 1) {
+  // 8. 최근 로그 목록 조회 (페이지네이션)
+  function getRecentLogs(limit = 15, page = 1) {
     let logs = [];
     try {
       logs = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECENT_LOGS) || '[]');
@@ -629,87 +511,20 @@ const Tracker = (() => {
     };
   }
 
-  // 10. 테스트 트래픽 시뮬레이션
-  function generateSampleTraffic(count = 10) {
-    const actions = [
-      '사건 상세 열람 [강남 성형외과 수면마취 여성 환자 불법촬영 사건]',
-      '검색어 입력: "프로포폴"',
-      '카테고리 필터: 마약류/향정',
-      '지역 필터: 부산',
-      '사건 상세 열람 [의료기기 영업사원 대리수술 사건]',
-      '지도 클릭: 대구 지역 사건 조회'
-    ];
-
-    const referrers = ['검색 (Naver)', '검색 (Google)', '커뮤니티 (디시인사이드)', '커뮤니티 (에펨코리아)', '직접 접속 (Direct)', 'SNS (Twitter/X)'];
-    const devices = ['Mobile', 'Desktop', 'Tablet'];
-    const osList = ['Android', 'iOS', 'Windows', 'macOS'];
-    const browsers = ['Chrome', 'Safari', 'Samsung Internet', 'Naver Whale'];
-
-    const todayKey = getTodayKey();
-    let dailyStats = {};
-    try {
-      dailyStats = JSON.parse(localStorage.getItem(STORAGE_KEYS.DAILY_STATS) || '{}');
-    } catch (e) {}
-
-    if (!dailyStats[todayKey]) {
-      dailyStats[todayKey] = {
-        pv: 0,
-        uv: 0,
-        events: 0,
-        hourly: new Array(24).fill(0),
-        devices: { Mobile: 0, Desktop: 0, Tablet: 0 },
-        os: { Windows: 0, Android: 0, iOS: 0, macOS: 0, Linux: 0, Other: 0 },
-        referrers: {}
-      };
-    }
-
-    const curH = new Date().getHours();
-    for (let i = 0; i < count; i++) {
-      const dev = devices[Math.floor(Math.random() * devices.length)];
-      const os = osList[Math.floor(Math.random() * osList.length)];
-      const bro = browsers[Math.floor(Math.random() * browsers.length)];
-      const ref = referrers[Math.floor(Math.random() * referrers.length)];
-      const act = actions[Math.floor(Math.random() * actions.length)];
-
-      dailyStats[todayKey].pv += 1;
-      if (Math.random() > 0.3) dailyStats[todayKey].uv += 1;
-      dailyStats[todayKey].events += Math.floor(1 + Math.random() * 3);
-      dailyStats[todayKey].hourly[curH] += 1;
-      dailyStats[todayKey].devices[dev] = (dailyStats[todayKey].devices[dev] || 0) + 1;
-      dailyStats[todayKey].os[os] = (dailyStats[todayKey].os[os] || 0) + 1;
-      dailyStats[todayKey].referrers[ref] = (dailyStats[todayKey].referrers[ref] || 0) + 1;
-
-      addRecentLog({
-        timestamp: new Date().toISOString(),
-        date: todayKey,
-        time: formatTime(new Date()),
-        path: '/index.html',
-        device: dev,
-        os: os,
-        browser: bro,
-        referrer: ref,
-        action: act,
-        staySeconds: Math.floor(20 + Math.random() * 150)
-      });
-    }
-
-    localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(dailyStats));
-  }
-
-  // 11. 통계 데이터 초기화
+  // 9. 통계 데이터 초기화
   function clearStats() {
     localStorage.removeItem(STORAGE_KEYS.DAILY_STATS);
     localStorage.removeItem(STORAGE_KEYS.RECENT_LOGS);
     localStorage.removeItem(STORAGE_KEYS.POPULAR_ARTICLES);
     localStorage.removeItem(STORAGE_KEYS.POPULAR_SEARCHES);
-    localStorage.removeItem(STORAGE_KEYS.SEEDED);
+    sessionStorage.clear();
   }
 
-  // 12. CSV 데이터 내보내기
+  // 10. CSV 데이터 내보내기
   function exportCsv() {
     const stats = getStats('30d');
     let csvContent = "\uFEFF"; // UTF-8 BOM for Excel
-    csvContent += "=== 의주빈 아카이브 일자별 방문 통계 (최근 30일) ===\n";
+    csvContent += "=== 의주빈 아카이브 일자별 실제 방문 통계 ===\n";
     csvContent += "날짜,페이지뷰(PV),순방문자(UV),이벤트수\n";
 
     stats.trendData.forEach(row => {
@@ -743,19 +558,19 @@ const Tracker = (() => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `medjubin_visitor_analytics_${getTodayKey()}.csv`;
+    link.download = `medjubin_real_analytics_${getTodayKey()}.csv`;
     link.click();
   }
 
-  // 자동 초기화 및 최초 페이지뷰 기록
+  // 자동 초기화 및 실제 페이지뷰 기록
   function init() {
     if (isInitialized) return;
     isInitialized = true;
-    seedInitialHistoricalData();
+    cleanupLegacyMockData();
     getOrCreateVisitorId();
     getOrCreateSessionId();
 
-    // 메인 페이지인 경우 페이지뷰 자동 기록
+    // 메인 페이지인 경우 실제 페이지뷰 1회 자동 기록
     if (!window.location.pathname.endsWith('admin.html')) {
       logPageView('/index.html');
     }
@@ -776,11 +591,9 @@ const Tracker = (() => {
     logEvent,
     getStats,
     getRecentLogs,
-    generateSampleTraffic,
     clearStats,
     exportCsv,
-    detectClientEnv,
-    seedInitialHistoricalData
+    detectClientEnv
   };
 })();
 

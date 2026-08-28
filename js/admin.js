@@ -406,26 +406,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    const simulateTrafficBtn = document.getElementById('simulateTrafficBtn');
-    if (simulateTrafficBtn) {
-      simulateTrafficBtn.addEventListener('click', () => {
-        if (typeof Tracker !== 'undefined') {
-          Tracker.generateSampleTraffic(12);
-          renderAnalyticsDashboard();
-          alert('⚡ 테스트 방문자 트래픽 12건이 즉시 생성되어 통계에 실시간 반영되었습니다!');
-        }
-      });
-    }
-
     const resetAnalyticsBtn = document.getElementById('resetAnalyticsBtn');
     if (resetAnalyticsBtn) {
       resetAnalyticsBtn.addEventListener('click', () => {
         if (confirm('모든 방문 통계 및 최근 방문자 활동 로그를 초기화하시겠습니까?')) {
           if (typeof Tracker !== 'undefined') {
             Tracker.clearStats();
-            Tracker.seedInitialHistoricalData();
             renderAnalyticsDashboard();
-            alert('방문 통계 데이터가 초기화되었습니다.');
+            alert('방문 통계 데이터가 0으로 초기화되었습니다.');
           }
         }
       });
